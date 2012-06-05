@@ -5,7 +5,7 @@ sys.path.append('../../')
 import tiletree
 
 def null_tree_test():
-	storage_manager = tiletree.CSVStorageManager()
+	storage_manager = tiletree.CSVStorageManager(open('tree.csv','w'), open('image.csv','w'))
 	renderer = tiletree.NullRenderer()
 	cutter = tiletree.GeomCutter()
 	generator = tiletree.QuadTreeGenerator()

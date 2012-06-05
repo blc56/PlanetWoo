@@ -22,15 +22,36 @@ class QuadTreeGenNode:
 		self.child_3 = child_3
 		self.parent_geom = None
 
+	def to_csv(self):
+		return ','.join(repr(x) for x in [self.node_id, self.zoom_level, self.min_x, self.min_y,
+			self.max_x, self.max_y, self.image_id, self.is_leaf, self.child_0, self.child_1, self.child_2,
+			self.child_3])
+
 	def __repr__(self):
 		return repr(self.__dict__)
 
 class CSVStorageManager:
-	def __init__(self):
-		pass
+	def __init__(self, tree_file, image_file, image_prefix='images/'):
+		self.tree_file = tree_file
+		self.image_file = image_file
+		self.image_prefix = image_prefix
+
+		self.tree_file.write(','.join(['node_id', 'zoom_level', 'min_x', 'min_y', 'max_x', 'max_y',
+			'image_id', 'is_leaf', 'child_0', 'child_1', 'child_2', 'child_3']))
+		self.tree_file.write('\n')
+
+		self.image_file.write(','.join(['image_id', 'image_fn']))
 
 	def store(self, node, img_fn):
-		print node, img_fn
+		self.tree_file.write(node.to_csv())
+		self.tree_file.write('\n')
+
+		self.image_file.write(','.join([repr(node.node_id), self.image_prefix + img_fn]))
+		self.image_file.write('\n')
+
+	def close(self):
+		self.tree_file.close()
+		self.image_file.close()
 
 class GeomCutter:
 	def __init__(self):
