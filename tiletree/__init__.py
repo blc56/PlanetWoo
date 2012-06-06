@@ -4,7 +4,6 @@ import ImagePalette
 import ImageDraw
 import StringIO
 import os
-import math
 
 ##\brief A simple, QuadTreeNode
 #
@@ -82,7 +81,7 @@ class CSVStorageManager:
 		link_dir, link_fn = self.get_slippy_path(node)
 		if(not os.path.isdir(link_dir)):
 			os.makedirs(link_dir)
-			os.symlink(img_fn, link_fn)
+		os.symlink(img_fn, link_fn)
 
 	def close(self):
 		self.tree_file.close()
@@ -94,7 +93,8 @@ class GeomCutter:
 
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
 		#raise Exception("Not implemented")
-		return None
+		#return None
+		return 0
 
 class NullRenderer:
 	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
@@ -129,12 +129,6 @@ class QuadTreeGenerator:
 	def __init__(self):
 		self.next_node_id = 0
 
-	def _render_node(self, node, geometry):
-		if(geometry):
-			raise Exception("Not Implemented")
-		else:
-			return self.render_blank
-
 	def generate_node(self, node, geom, storage_manager, renderer, num_levels):
 		#is this node a leaf?
 		if(geom != None and (node.zoom_level + 1) < num_levels ):
@@ -163,29 +157,29 @@ class QuadTreeGenerator:
 		min_y0 = node.min_y
 		max_x0 = node.max_x / 2.0
 		max_y0 = node.max_y / 2.0
-		tile_x0 = node.tile_x * math.exp(2,this_zoom) - 2
-		tile_y0 = node.tile_x * math.exp(2,this_zoom) - 2
+		tile_x0 = node.tile_x * 2
+		tile_y0 = node.tile_y * 2
 
 		min_x1 = max_x0
 		min_y1 = node.min_y
 		max_x1 = node.max_x
 		max_y1 = max_y0
-		tile_x0 = node.tile_x * math.exp(2,this_zoom) - 1
-		tile_y0 = node.tile_x * math.exp(2,this_zoom) - 2
+		tile_x1 = node.tile_x * 2 + 1
+		tile_y1 = node.tile_y * 2
 
 		min_x2 = node.min_x
 		min_y2 = max_y0
 		max_x2 = max_x0
 		max_y2 = node.max_y
-		tile_x0 = node.tile_x * math.exp(2,this_zoom) - 2
-		tile_y0 = node.tile_x * math.exp(2,this_zoom) - 1
+		tile_x2 = node.tile_x * 2
+		tile_y2 = node.tile_y * 2 + 1
 
 		min_x3 = max_x0
 		min_y3 = max_y0
 		max_x3 = node.max_y
 		max_y3 = node.max_y
-		tile_x0 = node.tile_x * math.exp(2,this_zoom) - 1
-		tile_y0 = node.tile_x * math.exp(2,this_zoom) - 1
+		tile_x3 = node.tile_x * 2 + 1
+		tile_y3 = node.tile_y * 2 + 1
 
 		child0 = QuadTreeGenNode(self.next_node_id, min_x0, min_y0, max_x0, max_y0, this_zoom,
 				parent_geom=geom, tile_x=tile_x0, tile_y=tile_y0)
