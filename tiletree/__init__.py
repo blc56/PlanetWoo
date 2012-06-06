@@ -1,4 +1,8 @@
 ##\file __init__.py Main classes for the tiletree module. 
+import Image
+import ImagePalette
+import ImageDraw
+import StringIO
 
 ##\brief A simple, QuadTreeNode
 #
@@ -31,22 +35,32 @@ class QuadTreeGenNode:
 		return repr(self.__dict__)
 
 class CSVStorageManager:
-	def __init__(self, tree_file, image_file, image_prefix='images/'):
+	def __init__(self, tree_file, image_file, image_prefix='images/', image_suffix='.png'):
 		self.tree_file = tree_file
 		self.image_file = image_file
 		self.image_prefix = image_prefix
+		self.image_suffix = image_suffix
+		#maps image ids to 
+		self.image_dict = {}
 
 		self.tree_file.write(','.join(['node_id', 'zoom_level', 'min_x', 'min_y', 'max_x', 'max_y',
 			'image_id', 'is_leaf', 'child_0', 'child_1', 'child_2', 'child_3']))
 		self.tree_file.write('\n')
 
 		self.image_file.write(','.join(['image_id', 'image_fn']))
+		self.image_file.write('\n')
 
-	def store(self, node, img_fn):
+	def store(self, node, img_bytes):
 		self.tree_file.write(node.to_csv())
 		self.tree_file.write('\n')
 
-		self.image_file.write(','.join([repr(node.node_id), self.image_prefix + img_fn]))
+		img_fn = self.image_dict.get(node.image_id, None)
+		if(img_fn == None):
+
+			img_fn = self.image_prefix + repr(node.image_id) + self.image_suffix
+			open(img_fn, 'w').write(img_bytes.getvalue())
+
+		self.image_file.write(','.join([repr(node.node_id), img_fn]))
 		self.image_file.write('\n')
 
 	def close(self):
@@ -62,18 +76,26 @@ class GeomCutter:
 		return None
 
 class NullRenderer:
-	def __init__(self):
+	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
+		self.img_w = img_w
+		self.img_h = img_h
 		self.blank_img_id = None
 		self.next_img_id = 0
-		self.blank_img_fn = None 
+		self.blank_img_bytes = None 
 
 	def _render_blank(self):
 		if(self.blank_img_id == None):
 			self.blank_img_id = self.next_img_id
-			self.next_img_id += 1
-			self.blank_img_fn = 'blank.png'
 
-		return (self.blank_img_id, self.blank_img_fn)
+			palette = ImagePalette.ImagePalette("RGB").palette
+			image = Image.new("P",(self.img_w,self.img_h),0)
+			image.putpalette(palette)
+			self.blank_img_bytes = StringIO.StringIO()
+			image.save(self.blank_img_bytes, 'png')
+
+			self.next_img_id += 1
+
+		return (self.blank_img_id, self.blank_img_bytes)
 
 	def render(self, geometry):
 		if(not geometry):
@@ -98,7 +120,7 @@ class QuadTreeGenerator:
 			node.is_leaf = False
 
 		#render this node
-		node.image_id, this_img_fn = renderer.render(geom)
+		node.image_id, this_img_bytes = renderer.render(geom)
 		
 		#store this node
 		if(not node.is_leaf):
@@ -106,7 +128,7 @@ class QuadTreeGenerator:
 			node.child_1 = self.next_node_id + 1
 			node.child_2 = self.next_node_id + 2
 			node.child_3 = self.next_node_id + 3
-		storage_manager.store(node, this_img_fn)
+		storage_manager.store(node, this_img_bytes)
 
 		#split this node 
 		if(node.is_leaf):
