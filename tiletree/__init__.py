@@ -55,13 +55,6 @@ class CSVStorageManager:
 	def lookup_tile(self, zoom_level, x, y):
 		raise Exception("Not implemented")
 
-	def get_slippy_path(self, node):
-		#store in OSM slippy tile structure
-		link_dir = os.path.join(self.image_prefix, repr(node.zoom_level), repr(node.tile_x))
-		link_fn = os.path.join(link_dir, repr(node.tile_y)) + self.image_suffix
-
-		return (link_dir, link_fn)
-
 	def _get_storage_path(self, node):
 		return self.image_prefix + repr(node.image_id) + self.image_suffix
 
@@ -77,6 +70,34 @@ class CSVStorageManager:
 			self.image_file.write(','.join([repr(node.node_id), img_fn]))
 			self.image_file.write('\n')
 
+	def close(self):
+		self.tree_file.close()
+		self.image_file.close()
+
+class FSStorageManager:
+	def __init__(self, image_prefix='images/', image_suffix='.png'):
+		self.image_prefix = image_prefix
+		self.image_suffix = image_suffix
+
+	def lookup_tile(self, zoom_level, x, y):
+		raise Exception("Not implemented")
+
+	def get_slippy_path(self, node):
+		#store in OSM slippy tile structure
+		link_dir = os.path.join(self.image_prefix, repr(node.zoom_level), repr(node.tile_x))
+		link_fn = os.path.join(link_dir, repr(node.tile_y)) + self.image_suffix
+
+		return (link_dir, link_fn)
+
+	def _get_storage_path(self, node):
+		return self.image_prefix + repr(node.image_id) + self.image_suffix
+
+	def store(self, node, img_bytes):
+		img_fn = self._get_storage_path(node)
+		if(not os.path.exists(img_fn)):
+			#create the image
+			open(img_fn, 'w').write(img_bytes.getvalue())
+
 		#now create a sym link to the image (slippymap style)
 		link_dir, link_fn = self.get_slippy_path(node)
 		if(not os.path.isdir(link_dir)):
@@ -84,8 +105,7 @@ class CSVStorageManager:
 		os.symlink(img_fn, link_fn)
 
 	def close(self):
-		self.tree_file.close()
-		self.image_file.close()
+		pass
 
 class GeomCutter:
 	def __init__(self):
