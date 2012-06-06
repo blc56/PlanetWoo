@@ -79,18 +79,19 @@ class FSStorageManager:
 		self.image_prefix = image_prefix
 		self.image_suffix = image_suffix
 
-	def lookup_tile(self, zoom_level, x, y):
-		raise Exception("Not implemented")
-
-	def get_slippy_path(self, node):
+	def get_slippy_path(self, zoom_level, x, y):
 		#store in OSM slippy tile structure
-		link_dir = os.path.join(self.image_prefix, repr(node.zoom_level), repr(node.tile_x))
-		link_fn = os.path.join(link_dir, repr(node.tile_y)) + self.image_suffix
+		link_dir = os.path.join(self.image_prefix, str(zoom_level), str(x))
+		link_fn = os.path.join(link_dir, str(y)) + self.image_suffix
 
 		return (link_dir, link_fn)
 
 	def _get_storage_path(self, node):
 		return self.image_prefix + repr(node.image_id) + self.image_suffix
+
+	def fetch(self, zoom_level, x, y):
+		path = self.get_slippy_path(zoom_level, x, y)[1]
+		return open(path, 'r')
 
 	def store(self, node, img_bytes):
 		img_fn = self._get_storage_path(node)
@@ -99,10 +100,10 @@ class FSStorageManager:
 			open(img_fn, 'w').write(img_bytes.getvalue())
 
 		#now create a sym link to the image (slippymap style)
-		link_dir, link_fn = self.get_slippy_path(node)
+		link_dir, link_fn = self.get_slippy_path(node.zoom_level, node.tile_x, node.tile_y)
 		if(not os.path.isdir(link_dir)):
 			os.makedirs(link_dir)
-		os.symlink(img_fn, link_fn)
+		os.symlink(os.path.abspath(img_fn), link_fn)
 
 	def close(self):
 		pass
