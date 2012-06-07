@@ -16,14 +16,14 @@ class MapServerRenderer(NullRenderer):
 		is_leaf = False
 		if(geometry == None or geometry.is_empty):
 			is_blank = True
-			#is_leaf = True
+			is_leaf = True
 
 		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
 			{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
 
 		if(geometry.contains(bbox)):
 			is_full = True
-			#is_leaf = True
+			is_leaf = True
 
 		return (is_blank, is_full, is_leaf)
 

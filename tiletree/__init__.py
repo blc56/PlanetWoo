@@ -122,6 +122,8 @@ class QuadTreeGenerator:
 
 	def generate_node(self, node, geom, storage_manager, renderer, num_levels):
 
+		print node.zoom_level, node.tile_x, node.tile_y
+
 		#is this node a leaf?
 		node.is_blank, node.is_full, node.is_leaf =\
 			renderer.tile_info(geom, node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)

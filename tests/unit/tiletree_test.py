@@ -28,12 +28,12 @@ def shapefile_test():
 	print geom.area, geom.bounds
 
 def mapserver_render_test():
-	#storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
-	storage_manager = tiletree.fsstorage.FSStorageManager()
+	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
+	#storage_manager = tiletree.fsstorage.FSStorageManager()
 	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),'poly_fill')
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/united_states_merged.shp', 'united_states_merged')
 	generator = tiletree.QuadTreeGenerator()
-	generator.generate(-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803, storage_manager, renderer, cutter, num_levels=2)
+	generator.generate(-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803, storage_manager, renderer, cutter, num_levels=5)
 
 def main():
 	#null_fs_tree_test()
