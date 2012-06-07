@@ -3,7 +3,6 @@ import Image
 import ImagePalette
 import ImageDraw
 import StringIO
-import os
 import mapscript
 
 ##\brief A simple, QuadTreeNode

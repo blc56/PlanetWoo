@@ -1,5 +1,8 @@
 ##\file mapserver.py render classes for the tiletree module. 
 from tiletree import *
+import shapely
+import shapely.wkt
+import shapely.geometry
 
 class MapServerRenderer(NullRenderer):
 	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_prefix='images/'):
@@ -8,15 +11,27 @@ class MapServerRenderer(NullRenderer):
 		self.layers=layers
 
 	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
-		#TODO: FIXME
-		return (False, False, False)
+		is_blank = False
+		is_full = False
+		is_leaf = False
+		if(geometry == None or geometry.is_empty):
+			is_blank = True
+			#is_leaf = True
+
+		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
+			{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
+
+		if(geometry.contains(bbox)):
+			is_full = True
+			#is_leaf = True
+
+		return (is_blank, is_full, is_leaf)
 
 	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
 		wms_req = mapscript.OWSRequest()
 
-		#TODO:BLC: XXX replace this with geometry!!!
 		template_args = {
-			'wkt': "POLYGON((5 5, 5 10, 10 10, 10 5, 5 5))",
+			'wkt': shapely.wkt.dumps(geometry),
 		}
 		mapfile = mapscript.fromstring(self.mapfile_template % template_args)
 
@@ -39,3 +54,4 @@ class MapServerRenderer(NullRenderer):
 		self.next_img_id += 1
 
 		return (img_id, StringIO.StringIO(mapscript.msIO_getStdoutBufferBytes()))
+
