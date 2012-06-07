@@ -41,78 +41,20 @@ class QuadTreeGenNode:
 	def __repr__(self):
 		return repr(self.__dict__)
 
-class CSVStorageManager:
-	def __init__(self, tree_file, image_file, image_prefix='images/', image_suffix='.png'):
-		self.tree_file = tree_file
-		self.image_file = image_file
-		self.image_prefix = image_prefix
-		self.image_suffix = image_suffix
-
-		self.tree_file.write(','.join(['node_id', 'zoom_level', 'min_x', 'min_y', 'max_x', 'max_y',
-			'image_id', 'is_leaf', 'is_blank', 'is_full',
-			'child_0', 'child_1', 'child_2', 'child_3', 'tile_x', 'tile_y']))
-		self.tree_file.write('\n')
-
-		self.image_file.write(','.join(['image_id', 'image_fn']))
-		self.image_file.write('\n')
-
-	def lookup_tile(self, zoom_level, x, y):
-		raise Exception("Not implemented")
-
-	def _get_storage_path(self, node):
-		return self.image_prefix + repr(node.image_id) + self.image_suffix
-
-	def store(self, node, img_bytes):
-		self.tree_file.write(node.to_csv())
-		self.tree_file.write('\n')
-
-		img_fn = self._get_storage_path(node)
-		if(not os.path.exists(img_fn)):
-			#create the image
-			open(img_fn, 'w').write(img_bytes.getvalue())
-			#also output the information to the csv
-			self.image_file.write(','.join([repr(node.node_id), img_fn]))
-			self.image_file.write('\n')
-
-	def close(self):
-		self.tree_file.close()
-		self.image_file.close()
-
-class FSStorageManager:
-	def __init__(self, image_prefix='images/', image_suffix='.png'):
-		self.image_prefix = image_prefix
-		self.image_suffix = image_suffix
-
-	def get_slippy_path(self, zoom_level, x, y):
-		#store in OSM slippy tile structure
-		link_dir = os.path.join(self.image_prefix, str(zoom_level), str(x))
-		link_fn = os.path.join(link_dir, str(y)) + self.image_suffix
-
-		return (link_dir, link_fn)
-
-	def _get_storage_path(self, node):
-		return self.image_prefix + repr(node.image_id) + self.image_suffix
+class NullStorageManager:
+	def __init__(self):
+		pass
 
 	def fetch(self, zoom_level, x, y):
-		path = self.get_slippy_path(zoom_level, x, y)[1]
-		return open(path, 'r')
+		pass
 
 	def store(self, node, img_bytes):
-		img_fn = self._get_storage_path(node)
-		if(not os.path.exists(img_fn)):
-			#create the image
-			open(img_fn, 'w').write(img_bytes.getvalue())
-
-		#now create a sym link to the image (slippymap style)
-		link_dir, link_fn = self.get_slippy_path(node.zoom_level, node.tile_x, node.tile_y)
-		if(not os.path.isdir(link_dir)):
-			os.makedirs(link_dir)
-		os.symlink(os.path.abspath(img_fn), link_fn)
+		pass
 
 	def close(self):
 		pass
 
-class GeomCutter:
+class NullGeomCutter:
 	def __init__(self):
 		pass
 
@@ -172,45 +114,6 @@ class NullRenderer:
 		elif(is_full):
 			return self.render_full()
 		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level)
-
-class MapServerRenderer(NullRenderer):
-	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_prefix='images/'):
-		NullRenderer.__init__(self, img_w, img_h, img_prefix)
-		self.mapfile_template=mapfile_template
-		self.layers=layers
-
-	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
-		#TODO: FIXME
-		return (False, False, False)
-
-	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
-		wms_req = mapscript.OWSRequest()
-
-		#TODO:BLC: XXX replace this with geometry!!!
-		template_args = {
-			'wkt': "POLYGON((5 5, 5 10, 10 10, 10 5, 5 5))",
-		}
-		mapfile = mapscript.fromstring(self.mapfile_template % template_args)
-
-		wms_req.setParameter('MODE', 'WMS')
-		wms_req.setParameter('VERSION', '1.1.1')
-		wms_req.setParameter('FORMAT', 'image/png')
-		wms_req.setParameter('TRANSPARENT', 'TRUE')
-		wms_req.setParameter('WIDTH', str(self.img_w))
-		wms_req.setParameter('HEIGHT', str(self.img_h))
-		wms_req.setParameter('SRS', 'EPSG:3857')
-		wms_req.setParameter('REQUEST', 'GetMap')
-		wms_req.setParameter('BBOX', ','.join(str(x) for x in [min_x, min_y, max_x, max_y]))
-		wms_req.setParameter('LAYERS', self.layers)
-
-		mapscript.msIO_installStdoutToBuffer()
-		mapfile.OWSDispatch(wms_req)
-		mapscript.msIO_stripStdoutBufferContentType()
-
-		img_id = self.next_img_id
-		self.next_img_id += 1
-
-		return (img_id, StringIO.StringIO(mapscript.msIO_getStdoutBufferBytes()))
 
 ##\brief A simple, QuadTree structure
 #
