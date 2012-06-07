@@ -47,11 +47,16 @@ class MapServerRenderer(NullRenderer):
 		wms_req.setParameter('LAYERS', self.layers)
 
 		mapscript.msIO_installStdoutToBuffer()
-		mapfile.OWSDispatch(wms_req)
+		#mapfile.OWSDispatch(wms_req)
 		mapscript.msIO_stripStdoutBufferContentType()
 
 		img_id = self.next_img_id
 		self.next_img_id += 1
 
-		return (img_id, StringIO.StringIO(mapscript.msIO_getStdoutBufferBytes()))
+		#return (img_id, StringIO.StringIO(''))
+
+		result =  (img_id,
+				StringIO.StringIO(mapscript.msIO_getStdoutBufferBytes()))
+		mapscript.msIO_resetHandlers()
+		return result
 

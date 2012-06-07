@@ -4,6 +4,10 @@ import ImagePalette
 import ImageDraw
 import StringIO
 import mapscript
+import copy
+import shapely
+import shapely.wkt
+import json
 
 ##\brief A simple, QuadTreeNode
 #
@@ -39,6 +43,25 @@ class QuadTreeGenNode:
 
 	def __repr__(self):
 		return repr(self.__dict__)
+
+	def to_dict(self):
+		return copy.copy(self.__dict__)
+
+	def to_json(self):
+		self_dict = self.to_dict()
+		if(self.parent_geom):
+			self_dict['parent_geom'] = shapely.wkt.dumps(self.parent_geom)
+		return json.dumps(self_dict)
+
+	def from_json(self, json_str):
+		self.__dict__.update(json.loads(json_str))
+		if(self.parent_geom):
+			self.parent_geom = shapely.wkt.loads(self.parent_geom)
+
+def quad_tree_gen_node_from_json(json_str):
+	node = QuadTreeGenNode()
+	node.from_json(json_str)
+	return node
 
 class NullStorageManager:
 	def __init__(self):
@@ -121,8 +144,6 @@ class QuadTreeGenerator:
 		self.next_node_id = 0
 
 	def generate_node(self, node, geom, storage_manager, renderer, num_levels):
-
-		print node.zoom_level, node.tile_x, node.tile_y
 
 		#is this node a leaf?
 		node.is_blank, node.is_full, node.is_leaf =\
@@ -208,8 +229,9 @@ class QuadTreeGenerator:
 		nodes_to_render = [root_node]
 
 		while(len(nodes_to_render) > 0):
-			this_node = nodes_to_render.pop(0)
+			this_node = nodes_to_render.pop()
 			this_geom = cutter.cut(this_node.min_x, this_node.min_y, this_node.max_x, this_node.max_y, this_node.parent_geom)
+			print this_node.zoom_level, this_node.tile_x, this_node.tile_y, len(nodes_to_render)
 			children = self.generate_node(this_node, this_geom, storage_manager, renderer, num_levels)
 			nodes_to_render.extend(children)
 
