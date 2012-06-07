@@ -4,6 +4,7 @@ import ImagePalette
 import ImageDraw
 import StringIO
 import os
+import mapscript
 
 ##\brief A simple, QuadTreeNode
 #
@@ -11,7 +12,8 @@ class QuadTreeGenNode:
 	##\param node_id - integer
 	#
 	def __init__(self, node_id=0, min_x=0, min_y=0, max_x=0, max_y=0, zoom_level=0,
-			image_id=None, is_leaf=True, child_0=None, child_1=None, child_2=None, child_3=None,
+			image_id=None, is_leaf=True, is_blank=True, is_full=False,
+			child_0=None, child_1=None, child_2=None, child_3=None,
 			parent_geom=None, tile_x=0, tile_y=0):
 		self.node_id = node_id
 		self.min_x = min_x
@@ -21,6 +23,8 @@ class QuadTreeGenNode:
 		self.zoom_level = zoom_level
 		self.image_id = image_id
 		self.is_leaf = is_leaf
+		self.is_blank = is_blank
+		self.is_full = is_full
 		self.child_0 = child_0
 		self.child_1 = child_1
 		self.child_2 = child_2
@@ -31,8 +35,8 @@ class QuadTreeGenNode:
 
 	def to_csv(self):
 		return ','.join(repr(x) for x in [self.node_id, self.zoom_level, self.min_x, self.min_y,
-			self.max_x, self.max_y, self.image_id, self.is_leaf, self.child_0, self.child_1, self.child_2,
-			self.child_3, self.tile_x, self.tile_y])
+			self.max_x, self.max_y, self.image_id, self.is_leaf, self.is_blank, self.is_full,
+			self.child_0, self.child_1, self.child_2, self.child_3, self.tile_x, self.tile_y])
 
 	def __repr__(self):
 		return repr(self.__dict__)
@@ -45,8 +49,8 @@ class CSVStorageManager:
 		self.image_suffix = image_suffix
 
 		self.tree_file.write(','.join(['node_id', 'zoom_level', 'min_x', 'min_y', 'max_x', 'max_y',
-			'image_id', 'is_leaf', 'child_0', 'child_1', 'child_2', 'child_3',
-			'tile_x', 'tile_y']))
+			'image_id', 'is_leaf', 'is_blank', 'is_full',
+			'child_0', 'child_1', 'child_2', 'child_3', 'tile_x', 'tile_y']))
 		self.tree_file.write('\n')
 
 		self.image_file.write(','.join(['image_id', 'image_fn']))
@@ -122,10 +126,26 @@ class NullRenderer:
 		self.img_w = img_w
 		self.img_h = img_h
 		self.blank_img_id = None
-		self.next_img_id = 0
 		self.blank_img_bytes = None 
+		self.full_img_id = None
+		self.full_img_bytes = None 
+		self.next_img_id = 0
 
-	def _render_blank(self):
+	def render_full(self):
+		if(self.full_img_id == None):
+			self.full_img_id = self.next_img_id
+
+			palette = ImagePalette.ImagePalette("RGB").palette
+			image = Image.new("P",(self.img_w,self.img_h),0)
+			image.putpalette(palette)
+			self.full_img_bytes = StringIO.StringIO()
+			image.save(self.full_img_bytes, 'png')
+
+			self.next_img_id += 1
+
+		return (self.full_img_id, self.full_img_bytes)
+
+	def render_blank(self):
 		if(self.blank_img_id == None):
 			self.blank_img_id = self.next_img_id
 
@@ -139,10 +159,58 @@ class NullRenderer:
 
 		return (self.blank_img_id, self.blank_img_bytes)
 
-	def render(self, geometry):
-		if(not geometry):
-			return self._render_blank()
-		raise Exception("Not implemented")
+	#\return (is_blank, is_full, is_leaf)
+	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
+		return (True, False, False)
+
+	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+		return self.render_blank()
+
+	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+		if(is_blank):
+			return self.render_blank()
+		elif(is_full):
+			return self.render_full()
+		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level)
+
+class MapServerRenderer(NullRenderer):
+	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_prefix='images/'):
+		NullRenderer.__init__(self, img_w, img_h, img_prefix)
+		self.mapfile_template=mapfile_template
+		self.layers=layers
+
+	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
+		#TODO: FIXME
+		return (False, False, False)
+
+	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+		wms_req = mapscript.OWSRequest()
+
+		#TODO:BLC: XXX replace this with geometry!!!
+		template_args = {
+			'wkt': "POLYGON((5 5, 5 10, 10 10, 10 5, 5 5))",
+		}
+		mapfile = mapscript.fromstring(self.mapfile_template % template_args)
+
+		wms_req.setParameter('MODE', 'WMS')
+		wms_req.setParameter('VERSION', '1.1.1')
+		wms_req.setParameter('FORMAT', 'image/png')
+		wms_req.setParameter('TRANSPARENT', 'TRUE')
+		wms_req.setParameter('WIDTH', str(self.img_w))
+		wms_req.setParameter('HEIGHT', str(self.img_h))
+		wms_req.setParameter('SRS', 'EPSG:3857')
+		wms_req.setParameter('REQUEST', 'GetMap')
+		wms_req.setParameter('BBOX', ','.join(str(x) for x in [min_x, min_y, max_x, max_y]))
+		wms_req.setParameter('LAYERS', self.layers)
+
+		mapscript.msIO_installStdoutToBuffer()
+		mapfile.OWSDispatch(wms_req)
+		mapscript.msIO_stripStdoutBufferContentType()
+
+		img_id = self.next_img_id
+		self.next_img_id += 1
+
+		return (img_id, StringIO.StringIO(mapscript.msIO_getStdoutBufferBytes()))
 
 ##\brief A simple, QuadTree structure
 #
@@ -151,12 +219,18 @@ class QuadTreeGenerator:
 		self.next_node_id = 0
 
 	def generate_node(self, node, geom, storage_manager, renderer, num_levels):
+
 		#is this node a leaf?
-		if(geom != None and (node.zoom_level + 1) < num_levels ):
-			node.is_leaf = False
+		node.is_blank, node.is_full, node.is_leaf =\
+			renderer.tile_info(geom, node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)
+
+		if(node.zoom_level >= num_levels):
+			node.is_leaf = True
 
 		#render this node
-		node.image_id, this_img_bytes = renderer.render(geom)
+		node.image_id, this_img_bytes =\
+			renderer.render(geom, node.is_blank, node.is_full, node.is_leaf,
+				node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)
 		
 		#store this node
 		if(not node.is_leaf):
@@ -176,8 +250,8 @@ class QuadTreeGenerator:
 		this_zoom = node.zoom_level + 1
 		min_x0 = node.min_x
 		min_y0 = node.min_y
-		max_x0 = node.max_x / 2.0
-		max_y0 = node.max_y / 2.0
+		max_x0 = node.min_x + (node.max_x - node.min_x) / 2.0
+		max_y0 = node.min_y + (node.max_y - node.min_y) / 2.0
 		tile_x0 = node.tile_x * 2
 		tile_y0 = node.tile_y * 2
 
@@ -197,7 +271,7 @@ class QuadTreeGenerator:
 
 		min_x3 = max_x0
 		min_y3 = max_y0
-		max_x3 = node.max_y
+		max_x3 = node.max_x
 		max_y3 = node.max_y
 		tile_x3 = node.tile_x * 2 + 1
 		tile_y3 = node.tile_y * 2 + 1
