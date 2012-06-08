@@ -231,7 +231,7 @@ class QuadTreeGenerator:
 		while(len(nodes_to_render) > 0):
 			this_node = nodes_to_render.pop()
 			this_geom = cutter.cut(this_node.min_x, this_node.min_y, this_node.max_x, this_node.max_y, this_node.parent_geom)
-			print this_node.zoom_level, this_node.tile_x, this_node.tile_y, len(nodes_to_render)
+			#print this_node.zoom_level, this_node.tile_x, this_node.tile_y, len(nodes_to_render)
 			children = self.generate_node(this_node, this_geom, storage_manager, renderer, num_levels)
 			nodes_to_render.extend(children)
 

@@ -6,7 +6,6 @@ import tiletree.fsstorage
 import tiletree.csvstorage
 import tiletree.mapserver
 import tiletree.shapefile
-import tiletree.disk_stack
 
 def null_fs_tree_test():
 	storage_manager = tiletree.fsstorage.FSStorageManager()
@@ -30,11 +29,18 @@ def shapefile_test():
 
 def mapserver_render_test():
 	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
+
 	#storage_manager = tiletree.fsstorage.FSStorageManager()
-	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),'poly_fill')
+
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/united_states_merged.shp', 'united_states_merged')
+
+	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),'poly_fill',
+			cutter.cut(*cutter.bbox()))
+
 	generator = tiletree.QuadTreeGenerator()
-	generator.generate(-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803, storage_manager, renderer, cutter, num_levels=11)
+
+	min_x, min_y, max_x, max_y = cutter.bbox()
+	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=9)
 
 def main():
 	#null_fs_tree_test()

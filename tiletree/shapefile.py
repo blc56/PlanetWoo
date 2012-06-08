@@ -22,6 +22,9 @@ class ShapefileCutter:
 
 		self.geom = shapely.ops.cascaded_union(shapes)
 
+	def bbox(self):
+		return self.geom.bounds
+
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
 		#build a geometry from the bounds
 		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
