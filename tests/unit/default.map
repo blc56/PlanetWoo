@@ -39,9 +39,11 @@ LAYER
 	TYPE POLYGON
 	STATUS ON
 
-	FEATURE
-		WKT "%(wkt)s"
-	END
+	DATA "%(shapefile_path)s"
+
+#FEATURE
+#WKT "%(wkt)s"
+#END
 
 	CLASS
 		COLOR 255 0 0

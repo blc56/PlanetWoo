@@ -29,16 +29,13 @@ def shapefile_test():
 
 def mapserver_render_test():
 	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
-
 	#storage_manager = tiletree.fsstorage.FSStorageManager()
-
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/united_states_merged.shp', 'united_states_merged')
-
+	#renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),'poly_fill',
+			#cutter.cut(*cutter.bbox()))
 	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),'poly_fill',
-			cutter.cut(*cutter.bbox()))
-
+			'test_geo/united_states_merged')
 	generator = tiletree.QuadTreeGenerator()
-
 	min_x, min_y, max_x, max_y = cutter.bbox()
 	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=9)
 

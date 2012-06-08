@@ -5,14 +5,16 @@ import shapely.wkt
 import shapely.geometry
 
 class MapServerRenderer(NullRenderer):
-	def __init__(self, mapfile_template, layers, geometry, img_w=256, img_h=256, img_prefix='images/'):
+	def __init__(self, mapfile_template, layers, shapefile_path, img_w=256, img_h=256, img_prefix='images/'):
 		NullRenderer.__init__(self, img_w, img_h, img_prefix)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
 
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
-			'wkt': shapely.wkt.dumps(geometry),
+			#'wkt': shapely.wkt.dumps(geometry),
+			'wkt': '',
+			'shapefile_path' : shapefile_path
 		}
 		self.mapfile = mapscript.fromstring(self.mapfile_template % template_args)
 
