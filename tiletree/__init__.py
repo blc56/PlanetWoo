@@ -8,6 +8,7 @@ import copy
 import shapely
 import shapely.wkt
 import json
+import time
 
 ##\brief A simple, QuadTreeNode
 #
@@ -146,13 +147,64 @@ class NullRenderer:
 			return self.render_full()
 		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level)
 
+class QuadTreeGenStats:
+	def __init__(self):
+		self.nodes_rendered = 0
+		self.blanks_rendered = 0
+		self.fulls_rendered = 0
+		self.start_time = time.time()
+		self.stop_time = self.start_time
+
+	def stop_timer(self):
+		self.stop_time = time.time()
+	
+	def reset_timer(self):
+		self.start_time = time.time()
+		self.stop_time = None
+
+	def track(self, is_blank, is_full):
+		if(is_blank):
+			self.blanks_rendered += 1
+		elif(is_full):
+			self.fulls_rendered += 1
+		self.nodes_rendered += 1
+
+	def __repr__(self):
+		if(self.stop_time != None):
+			return 'time: %f, nps: %f, cnps: %f, nodes: %d, blanks: %d, fulls: %d' %\
+				(self.stop_time - self.start_time, self.nodes_per_sec(), self.content_nodes_per_sec(),
+					self.nodes_rendered, self.blanks_rendered, self.fulls_rendered)
+		else:
+			return 'time: %f, nps: %f, cnps: %f, nodes: %d, blanks: %d, fulls: %d' %\
+				(time.time() - self.start_time, self.nodes_per_sec(), self.content_nodes_per_sec(),
+					self.nodes_rendered, self.blanks_rendered, self.fulls_rendered)
+
+	def nodes_rendered(self):
+		return self.nodes_rendered
+
+	def content_nodes_per_sec(self):
+		if(self.stop_time != None and (self.stop_time - self.start_time) != 0):
+			return (self.nodes_rendered - (self.blanks_rendered + self.fulls_rendered)) /\
+				(self.stop_time - self.start_time) 
+		if(self.stop_time == None and (time.time() - self.start_time != 0)):
+			return (self.nodes_rendered - (self.blanks_rendered + self.fulls_rendered)) /\
+				(time.time() - self.start_time) 
+		return float('nan')
+
+	def nodes_per_sec(self):
+		if(self.stop_time != None and (self.stop_time - self.start_time) != 0):
+			return self.nodes_rendered / (self.stop_time - self.start_time) 
+		if(self.stop_time == None and (time.time() - self.start_time != 0)):
+			return self.nodes_rendered / (time.time() - self.start_time) 
+		return float('nan')
+
 ##\brief A simple, QuadTree structure
 #
 class QuadTreeGenerator:
 	def __init__(self):
 		self.next_node_id = 0
 
-	def generate_node(self, node, geom, storage_manager, renderer, num_levels):
+	def generate_node(self, node, geom, storage_manager, renderer, num_levels, stats):
 
 		#is this node a leaf?
 		node.is_blank, node.is_full, node.is_leaf =\
@@ -165,6 +217,8 @@ class QuadTreeGenerator:
 		node.image_id, this_img_bytes =\
 			renderer.render(geom, node.is_blank, node.is_full, node.is_leaf,
 				node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)
+
+		stats.track(node.is_blank, node.is_full)
 		
 		#store this node
 		if(not node.is_leaf):
@@ -230,6 +284,8 @@ class QuadTreeGenerator:
 		return (child0, child1, child2, child3)
 
 	def generate(self, min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=17):
+		stats = QuadTreeGenStats()
+		stats.reset_timer()
 		self.next_node_id = 0
 
 		#create the initial QuadTreeGenNode
@@ -242,6 +298,12 @@ class QuadTreeGenerator:
 			this_node = nodes_to_render.pop()
 			this_geom = cutter.cut(this_node.min_x, this_node.min_y, this_node.max_x, this_node.max_y, this_node.parent_geom)
 			#print this_node.zoom_level, this_node.tile_x, this_node.tile_y, len(nodes_to_render)
-			children = self.generate_node(this_node, this_geom, storage_manager, renderer, num_levels)
+			children = self.generate_node(this_node, this_geom, storage_manager, renderer, num_levels, stats)
 			nodes_to_render.extend(children)
+
+			if(stats.nodes_rendered() % 100 == 0):
+				print stats
+
+		stats.stop_timer()
+		print stats
 
