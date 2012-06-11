@@ -6,6 +6,7 @@ import tiletree.fsstorage
 import tiletree.csvstorage
 import tiletree.mapserver
 import tiletree.shapefile
+import tiletree.postgres
 
 def null_fs_tree_test():
 	storage_manager = tiletree.fsstorage.FSStorageManager()
@@ -28,22 +29,26 @@ def shapefile_test():
 	print geom.area, geom.bounds
 
 def mapserver_render_test():
-	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
 	#storage_manager = tiletree.fsstorage.FSStorageManager()
-	cutter = tiletree.shapefile.ShapefileCutter('test_geo/united_states_merged.shp', 'united_states_merged')
-	#renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),'poly_fill',
-			#cutter.cut(*cutter.bbox()))
+	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
+	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
 	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),'poly_fill',
-			'test_geo/united_states_merged')
+			'test_geo/webmerc_northamerica/north_america.shp')
 	generator = tiletree.QuadTreeGenerator()
 	min_x, min_y, max_x, max_y = cutter.bbox()
-	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=9)
+	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=6)
+
+def postgres_test():
+	storage_manager = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'north_america_tree')
+	storage_manager.fetch(0, 0, 0)
 
 def main():
 	#null_fs_tree_test()
 	#null_csv_tree_test()
 	#shapefile_test()
 	mapserver_render_test()
+	#postgres_test()
+	pass
 
 if( __name__ == '__main__'):
 	main()

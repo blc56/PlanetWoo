@@ -13,15 +13,14 @@ END
 IMAGETYPE agg_png
 
 PROJECTION
-	"init=epsg:3857"
+	"init=epsg:3395"
 END
 
 WEB
 	IMAGEPATH "/tmp/"
 	METADATA
 		"ows_title" "exo_map"
-		"wms_srs" "EPSG:3785"
-		"ows_onlineresource" 'http://www.excensusonline.com'
+		"wms_srs" "EPSG:3395" "ows_onlineresource" 'http://www.excensusonline.com'
 		"wms_feature_info_mime_type" "application/json"
 		"ows_enable_request" "*" 
 		"wms_enable_request" "*"
@@ -33,17 +32,13 @@ LAYER
 	DUMP TRUE #mystery directive?	
 	NAME "poly_fill"
 	PROJECTION
-		"init=epsg:3857"
+		"init=epsg:3395"
 	END
 
 	TYPE POLYGON
 	STATUS ON
 
 	DATA "%(shapefile_path)s"
-
-#FEATURE
-#WKT "%(wkt)s"
-#END
 
 	CLASS
 		COLOR 255 0 0

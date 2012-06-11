@@ -36,10 +36,19 @@ class QuadTreeGenNode:
 		self.tile_x = tile_x
 		self.tile_y = tile_y
 
+	def to_csv_header(self):
+		#','.join(['node_id', 'zoom_level', 'min_x', 'min_y', 'max_x', 'max_y',
+			#'image_id', 'is_leaf', 'is_blank', 'is_full',
+			#'child_0', 'child_1', 'child_2', 'child_3', 'tile_x', 'tile_y'])
+		return ','.join(['node_id', 'zoom_level', 'tile_x', 'tile_y', 'image_id', 'is_leaf', 
+			'is_blank', 'is_full'])
+
 	def to_csv(self):
-		return ','.join(repr(x) for x in [self.node_id, self.zoom_level, self.min_x, self.min_y,
-			self.max_x, self.max_y, self.image_id, self.is_leaf, self.is_blank, self.is_full,
-			self.child_0, self.child_1, self.child_2, self.child_3, self.tile_x, self.tile_y])
+		#return ','.join(repr(x) for x in [self.node_id, self.zoom_level, self.min_x, self.min_y,
+			#self.max_x, self.max_y, self.image_id, self.is_leaf, self.is_blank, self.is_full,
+			#self.child_0, self.child_1, self.child_2, self.child_3, self.tile_x, self.tile_y])
+		return ','.join(repr(x) for x in [self.node_id, self.zoom_level, self.tile_x, self.tile_y,
+			self.image_id, self.is_leaf, self.is_blank, self.is_full])
 
 	def __repr__(self):
 		return repr(self.__dict__)
@@ -201,20 +210,21 @@ class QuadTreeGenerator:
 		tile_x3 = node.tile_x * 2 + 1
 		tile_y3 = node.tile_y * 2 + 1
 
+		#do the tile coordinates slippy map style instead of TMS style
 		child0 = QuadTreeGenNode(self.next_node_id, min_x0, min_y0, max_x0, max_y0, this_zoom,
-				parent_geom=geom, tile_x=tile_x0, tile_y=tile_y0)
+				parent_geom=geom, tile_x=tile_x0, tile_y=tile_y2)
 		self.next_node_id += 1
 
 		child1 = QuadTreeGenNode(self.next_node_id, min_x1, min_y1, max_x1, max_y1, this_zoom,
-				parent_geom=geom, tile_x=tile_x1, tile_y=tile_y1)
+				parent_geom=geom, tile_x=tile_x1, tile_y=tile_y3)
 		self.next_node_id += 1
 
 		child2 = QuadTreeGenNode(self.next_node_id, min_x2, min_y2, max_x2, max_y2, this_zoom,
-				parent_geom=geom, tile_x=tile_x2, tile_y=tile_y2)
+				parent_geom=geom, tile_x=tile_x2, tile_y=tile_y0)
 		self.next_node_id += 1
 
 		child3 = QuadTreeGenNode(self.next_node_id, min_x3, min_y3, max_x3, max_y3, this_zoom,
-				parent_geom=geom, tile_x=tile_x3, tile_y=tile_y3)
+				parent_geom=geom, tile_x=tile_x3, tile_y=tile_y1)
 		self.next_node_id += 1
 
 		return (child0, child1, child2, child3)

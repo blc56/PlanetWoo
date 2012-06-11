@@ -13,7 +13,6 @@ class MapServerRenderer(NullRenderer):
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
 			#'wkt': shapely.wkt.dumps(geometry),
-			'wkt': '',
 			'shapefile_path' : shapefile_path
 		}
 		self.mapfile = mapscript.fromstring(self.mapfile_template % template_args)
@@ -22,6 +21,7 @@ class MapServerRenderer(NullRenderer):
 		is_blank = False
 		is_full = False
 		is_leaf = False
+
 		if(geometry == None or geometry.is_empty):
 			is_blank = True
 			is_leaf = True
@@ -45,7 +45,7 @@ class MapServerRenderer(NullRenderer):
 		wms_req.setParameter('TRANSPARENT', 'TRUE')
 		wms_req.setParameter('WIDTH', str(self.img_w))
 		wms_req.setParameter('HEIGHT', str(self.img_h))
-		wms_req.setParameter('SRS', 'EPSG:3857')
+		wms_req.setParameter('SRS', 'EPSG:3395')
 		wms_req.setParameter('REQUEST', 'GetMap')
 		wms_req.setParameter('BBOX', ','.join(str(x) for x in [min_x, min_y, max_x, max_y]))
 		wms_req.setParameter('LAYERS', self.layers)
