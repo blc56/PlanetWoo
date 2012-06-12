@@ -45,7 +45,8 @@ class ShapefileStorageManager:
 	def __init__(self, shapefile_path, layer_name, epsg_number=3395,
 			fields=['node_id', 'zoom_level', 'tile_x', 'tile_y', 'is_leaf', 'is_blank', 'is_full',
 				'min_x', 'min_y', 'max_x', 'max_y'],
-			field_types={'min_x':'float', 'min_y':'float', 'max_x':'float', 'max_y':'float' }):
+			field_types={'min_x':'float', 'min_y':'float', 'max_x':'float', 'max_y':'float' },
+			img_w=256, img_h=256):
 
 		ogr_driver = ogr.GetDriverByName('ESRI Shapefile')
 		self.out_ds = ogr_driver.CreateDataSource(shapefile_path)
@@ -53,6 +54,8 @@ class ShapefileStorageManager:
 		srs.ImportFromEPSG(epsg_number)
 		self.out_layer = self.out_ds.CreateLayer(layer_name, srs, ogr.wkbUnknown)
 		self.fields = fields
+		self.img_w = img_w
+		self.img_h = img_h
 
 		ogr_field_types = {
 			'int': ogr.OFTInteger,
@@ -70,6 +73,12 @@ class ShapefileStorageManager:
 			new_feature.SetField(str(f), getattr(node, f) )
 
 		geom = node.geom
+		#simplify the geometry appropriatley for this bounding box and
+		#tile size before storing it
+		simplify_factor = min(abs(node.max_x - node.min_x)/self.img_w,
+				abs(node.max_y - node.min_y)/self.img_h)
+		simplify_factor /= 2.0
+		geom = node.geom.simplify(simplify_factor, preserve_topology=False)
 		new_feature.SetGeometry(ogr.CreateGeometryFromWkt(shapely.wkt.dumps(geom)))
 		self.out_layer.CreateFeature(new_feature)
 

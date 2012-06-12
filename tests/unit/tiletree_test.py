@@ -78,12 +78,12 @@ def main():
 	#null_fs_tree_test()
 	#null_csv_tree_test()
 	#shapefile_cutter_test()
-	mapserver_render_test()
+	#mapserver_render_test()
 	#pil_render_test()
 	#postgres_test()
 	#geom_builder_csv_test()
 	#geom_builder_shapefile_test()
-	#vector_tile_render_test()
+	vector_tile_render_test()
 	pass
 
 if( __name__ == '__main__'):
