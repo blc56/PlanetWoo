@@ -5,7 +5,7 @@ import shapely.wkt
 import shapely.geometry
 
 class MapServerRenderer(NullRenderer):
-	def __init__(self, mapfile_template, layers, shapefile_path, img_w=256, img_h=256, img_prefix='images/'):
+	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_prefix='images/'):
 		NullRenderer.__init__(self, img_w, img_h, img_prefix)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
@@ -13,27 +13,9 @@ class MapServerRenderer(NullRenderer):
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
 			#'wkt': shapely.wkt.dumps(geometry),
-			'shapefile_path' : shapefile_path
+			#'shapefile_path' : shapefile_path
 		}
 		self.mapfile = mapscript.fromstring(self.mapfile_template % template_args)
-
-	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
-		is_blank = False
-		is_full = False
-		is_leaf = False
-
-		if(geometry == None or geometry.is_empty):
-			is_blank = True
-			is_leaf = True
-
-		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
-			{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
-
-		if(geometry.contains(bbox)):
-			is_full = True
-			is_leaf = True
-
-		return (is_blank, is_full, is_leaf)
 
 	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
 		mapscript.msIO_installStdoutToBuffer()
@@ -51,6 +33,7 @@ class MapServerRenderer(NullRenderer):
 		wms_req.setParameter('LAYERS', self.layers)
 
 		self.mapfile.OWSDispatch(wms_req)
+
 		mapscript.msIO_stripStdoutBufferContentType()
 
 		img_id = self.next_img_id
@@ -61,4 +44,11 @@ class MapServerRenderer(NullRenderer):
 		mapscript.msIO_resetHandlers()
 
 		return result
+
+	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+		if(is_blank):
+			return self.render_blank()
+		elif(is_full):
+			return self.render_full()
+		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level)
 

@@ -38,7 +38,7 @@ LAYER
 	TYPE POLYGON
 	STATUS ON
 
-	DATA "%(shapefile_path)s"
+	DATA "test_geo/webmerc_northamerica/north_america.shp"
 
 	CLASS
 		COLOR 255 0 0

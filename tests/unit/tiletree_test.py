@@ -19,9 +19,10 @@ def null_fs_tree_test():
 def null_csv_tree_test():
 	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
 	renderer = tiletree.NullRenderer()
-	cutter = tiletree.NullGeomCutter()
+	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
 	generator = tiletree.QuadTreeGenerator()
-	generator.generate(0, 0, 20, 20, storage_manager, renderer, cutter, num_levels=7)
+	min_x, min_y, max_x, max_y = cutter.bbox()
+	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=8)
 
 def shapefile_test():
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
@@ -33,8 +34,7 @@ def mapserver_render_test():
 	#storage_manager = tiletree.fsstorage.FSStorageManager()
 	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),'poly_fill',
-			'test_geo/webmerc_northamerica/north_america.shp')
+	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),'poly_fill')
 	generator = tiletree.QuadTreeGenerator()
 	min_x, min_y, max_x, max_y = cutter.bbox()
 	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=6)
@@ -46,7 +46,7 @@ def pil_render_test():
 	#renderer = tiletree.NullRenderer()
 	generator = tiletree.QuadTreeGenerator()
 	min_x, min_y, max_x, max_y = cutter.bbox()
-	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=6)
+	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=8)
 
 def postgres_test():
 	storage_manager = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'north_america_tree')
@@ -56,7 +56,7 @@ def main():
 	#null_fs_tree_test()
 	#null_csv_tree_test()
 	#shapefile_test()
-	#mapserver_render_test()
+	mapserver_render_test()
 	#pil_render_test()
 	#postgres_test()
 	pass
