@@ -43,8 +43,9 @@ class ShapefileCutter:
 
 class ShapefileStorageManager:
 	def __init__(self, shapefile_path, layer_name, epsg_number=3395,
-			fields=['node_id', 'zoom_level', 'tile_x', 'tile_y', 'is_leaf', 'is_blank', 'is_full'],
-			field_types={}):
+			fields=['node_id', 'zoom_level', 'tile_x', 'tile_y', 'is_leaf', 'is_blank', 'is_full',
+				'min_x', 'min_y', 'max_x', 'max_y'],
+			field_types={'min_x':'float', 'min_y':'float', 'max_x':'float', 'max_y':'float' }):
 
 		ogr_driver = ogr.GetDriverByName('ESRI Shapefile')
 		self.out_ds = ogr_driver.CreateDataSource(shapefile_path)
@@ -55,6 +56,7 @@ class ShapefileStorageManager:
 
 		ogr_field_types = {
 			'int': ogr.OFTInteger,
+			'float': ogr.OFTReal,
 		}
 
 		for f in self.fields:

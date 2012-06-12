@@ -70,6 +70,10 @@ def geom_builder_shapefile_test():
 	min_x, min_y, max_x, max_y = cutter.bbox()
 	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=6)
 
+def vector_tile_render_test():
+	renderer = tiletree.mapserver.MapServerRenderer(open('vector_tiles.map','r').read(),'poly_fill')
+	tiletree.mapserver.render_vector_tiles(renderer, "dbname=planetwoo user=guidek12", "tile_geom", "poly_fill")
+
 def main():
 	#null_fs_tree_test()
 	#null_csv_tree_test()
@@ -79,6 +83,7 @@ def main():
 	#postgres_test()
 	#geom_builder_csv_test()
 	#geom_builder_shapefile_test()
+	#vector_tile_render_test()
 	pass
 
 if( __name__ == '__main__'):
