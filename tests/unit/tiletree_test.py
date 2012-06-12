@@ -17,14 +17,14 @@ def null_fs_tree_test():
 	generator.generate(0, 0, 10, 10, storage_manager, renderer, cutter, num_levels=5)
 
 def null_csv_tree_test():
-	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
+	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), None)
 	renderer = tiletree.NullRenderer()
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
 	generator = tiletree.QuadTreeGenerator()
 	min_x, min_y, max_x, max_y = cutter.bbox()
 	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=8)
 
-def shapefile_test():
+def shapefile_cutter_test():
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
 	print cutter.geom.area, cutter.geom.bounds
 	geom = cutter.cut(-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
@@ -52,13 +52,33 @@ def postgres_test():
 	storage_manager = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'north_america_tree')
 	storage_manager.fetch(0, 0, 0)
 
+def geom_builder_csv_test():
+	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), None,
+			fields=['node_id', 'zoom_level', 'tile_x', 'tile_y',
+				'min_x', 'min_y', 'max_x', 'max_y', 'is_leaf', 'is_blank', 'is_full', 'geom'])
+	renderer = tiletree.NullRenderer()
+	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
+	generator = tiletree.QuadTreeGenerator()
+	min_x, min_y, max_x, max_y = cutter.bbox()
+	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=8)
+
+def geom_builder_shapefile_test():
+	storage_manager = tiletree.shapefile.ShapefileStorageManager('tile_geom.shp', 'tile_geom')
+	renderer = tiletree.NullRenderer()
+	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
+	generator = tiletree.QuadTreeGenerator()
+	min_x, min_y, max_x, max_y = cutter.bbox()
+	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=6)
+
 def main():
 	#null_fs_tree_test()
 	#null_csv_tree_test()
-	#shapefile_test()
+	#shapefile_cutter_test()
 	mapserver_render_test()
 	#pil_render_test()
 	#postgres_test()
+	#geom_builder_csv_test()
+	#geom_builder_shapefile_test()
 	pass
 
 if( __name__ == '__main__'):
