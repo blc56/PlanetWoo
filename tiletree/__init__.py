@@ -9,6 +9,11 @@ import shapely
 import shapely.wkt
 import json
 import time
+import shapely.speedups
+
+#if(shapely.speedups.available):
+	#shapely.speedups.enable()
+	#print "SPEEDUP?"
 
 ##\brief A simple, QuadTreeNode
 #
@@ -135,7 +140,21 @@ class NullRenderer:
 
 	#\return (is_blank, is_full, is_leaf)
 	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
-		return (True, False, False)
+		is_blank = False
+		is_full = False
+		is_leaf = False
+
+		if(geometry == None or geometry.is_empty):
+			is_blank = True
+			is_leaf = True
+		else:
+			bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
+				{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
+			if(geometry.contains(bbox)):
+				is_full = True
+				is_leaf = True
+
+		return (is_blank, is_full, is_leaf)
 
 	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
 		return self.render_blank()
@@ -179,7 +198,7 @@ class QuadTreeGenStats:
 				(time.time() - self.start_time, self.nodes_per_sec(), self.content_nodes_per_sec(),
 					self.nodes_rendered, self.blanks_rendered, self.fulls_rendered)
 
-	def nodes_rendered(self):
+	def get_nodes_rendered(self):
 		return self.nodes_rendered
 
 	def content_nodes_per_sec(self):
@@ -301,7 +320,7 @@ class QuadTreeGenerator:
 			children = self.generate_node(this_node, this_geom, storage_manager, renderer, num_levels, stats)
 			nodes_to_render.extend(children)
 
-			if(stats.nodes_rendered() % 100 == 0):
+			if(stats.get_nodes_rendered() % 100 == 0):
 				print stats
 
 		stats.stop_timer()

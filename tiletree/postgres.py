@@ -26,12 +26,12 @@ class PostgresStorageManager:
 		for z in range(zoom_level, -1, -1):
 		#for z in [zoom_level]:
 
-			#print z, x, y
+			print z, x, y
 
 			curs.execute("SELECT * from %(table)s WHERE zoom_level = %%(z)s and tile_x = %%(x)s and tile_y = %%(y)s" % {'table': self.table}, {'z': z, 'x': x, 'y': y})
 			node = curs.fetchone()
 			if(node):
-				#print node[4]
+				print node[4]
 				return open(self.get_image_path(node[4]), 'r')
 
 			x = math.floor(x/2.0)
