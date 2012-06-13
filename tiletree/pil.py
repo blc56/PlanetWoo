@@ -6,9 +6,11 @@ import shapely.geometry
 import Image
 import ImageDraw
 import StringIO
+import numpy
 
 def renderPILRing(image_draw, ring, draw_options, coord_translate_func):
-	image_draw.polygon([coord_translate_func(x) for x in ring.coords], **draw_options)
+	#coords = numpy.array(ring.xy)
+	#image_draw.polygon([coord_translate_func(x) for x in coords], **draw_options)
 	#image_draw.polygon([(0, 0), (1, 1), (10, 1), (0, 0)], **draw_options)
 	pass
 
@@ -29,9 +31,9 @@ def renderCollection(image_draw, collection, outer_ring_options, inner_ring_opti
 	for shape in collection:
 		renderShape(image_draw, shape, outer_ring_options, inner_ring_options, coord_translate_func)
 
-class PILRenderer(NullRenderer):
+class PILRenderer(Renderer):
 	def __init__(self, img_w=256, img_h=256, img_prefix='images/', fill=(255, 0, 0, 255), outline=(0, 255, 0, 255)):
-		NullRenderer.__init__(self, img_w, img_h, img_prefix)
+		Renderer.__init__(self, img_w, img_h, img_prefix)
 		self.outer_ring_options = {
 			'fill': '#FF0000',
 			#'outline': outline
@@ -40,27 +42,9 @@ class PILRenderer(NullRenderer):
 			'fill': '#00FF00',
 		}
 
-	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
-		is_blank = False
-		is_full = False
-		is_leaf = False
-
-		if(geometry == None or geometry.is_empty):
-			is_blank = True
-			is_leaf = True
-
-		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
-			{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
-
-		if(geometry.contains(bbox)):
-			is_full = True
-			is_leaf = True
-
-		return (is_blank, is_full, is_leaf)
-
 	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
-		image = Image.new("RGB", (self.img_w, self.img_h))
-		drawing = ImageDraw.Draw(image)
+		#image = Image.new("RGB", (self.img_w, self.img_h))
+		#drawing = ImageDraw.Draw(image)
 
 		try:
 			x_scale = self.img_w / float(max_x - min_x)
@@ -69,15 +53,15 @@ class PILRenderer(NullRenderer):
 			x_scale = 1
 			y_scale = 1
 
-		if(geometry):
-			geometry = geometry.simplify(1/x_scale, preserve_topology=True)
+		#if(geometry):
+			#geometry = geometry.simplify(1/x_scale, preserve_topology=True)
 
 		translate_coord = lambda x : ( (x[0] - min_x) * x_scale, (max_y - x[1]) * y_scale )
 
-		renderShape(drawing, geometry, self.outer_ring_options, self.inner_ring_options, translate_coord)
+		#renderShape(drawing, geometry, self.outer_ring_options, self.inner_ring_options, translate_coord)
 
 		result = StringIO.StringIO()
-		image.save(result, 'png')
+		#image.save(result, 'png')
 
 		img_id = self.next_img_id
 		self.next_img_id += 1

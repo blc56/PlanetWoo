@@ -147,11 +147,17 @@ class NullRenderer:
 
 	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
 		return (0, StringIO.StringIO('') )
-		#if(is_blank):
-			#return self.render_blank()
-		#elif(is_full):
-			#return self.render_full()
-		#return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level)
+
+class Renderer(NullRenderer):
+	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
+		NullRenderer.__init__(self, img_w, img_h, img_prefix)
+
+	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+		if(is_blank):
+			return self.render_blank()
+		elif(is_full):
+			return self.render_full()
+		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level)
 
 class QuadTreeGenStats:
 	def __init__(self):

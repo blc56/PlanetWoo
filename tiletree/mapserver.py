@@ -51,7 +51,10 @@ class MapServerRenderer(NullRenderer):
 
 		return result
 
-	def render_vector_tile(self, node_id, zoom_level, min_x, min_y, max_x, max_y, layer_name):
+	def render_vector_tile(self, node_id, zoom_level, tile_x, tile_y, is_leaf, is_blank, is_full,
+			min_x, min_y, max_x, max_y, layer_name):
+		#if(is_blank or is_full):
+			#return
 		#we ASSume quite a bit here, postgis connection type and table structure
 
 		#data = \
@@ -63,8 +66,12 @@ class MapServerRenderer(NullRenderer):
 #""" % {'table_name': table_name, 'z':z, 'x':x, 'y':y}
 		#layer = self.mapfile.getLayerByName(layer_name)
 		#layer.data = data
+		#layer = self.mapfile.getLayerByName(layer_name)
+		#layer.setFilter("([node_id] = %(node_id)d)" % {'node_id':node_id})
+
 		layer = self.mapfile.getLayerByName(layer_name)
-		layer.setFilter("([node_id] = %(node_id)d)" % {'node_id':node_id})
+		data = "shp_tiles/%(z)d_%(x)d_%(y)d.shp" % {'z':zoom_level, 'x':tile_x, 'y': tile_y}
+		layer.data = data
 
 		return self.render_normal(None, None, None, None, min_x, min_y, max_x, max_y, zoom_level)
 
@@ -81,8 +88,9 @@ def render_vector_tiles(renderer, connect_str, table_name, layer_name):
 
 	curs.execute(\
 """
-SELECT node_id, zoom_level,  min_x, min_y, max_x, max_y
+SELECT node_id, zoom_level, tile_x, tile_y, is_leaf, is_blank, is_full, min_x, min_y, max_x, max_y
 FROM %(table_name)s
+WHERE is_blank = 0 and is_full = 0
 """ % {'table_name':table_name})
 
 	start_time = time.time()
@@ -93,8 +101,8 @@ FROM %(table_name)s
 		renderer.render_vector_tile(*row)
 
 		processed_rows +=1
-		if(processed_rows % 25 == 0):
-			print processed_rows / (time.time() - start_time)
+		if(processed_rows % 100 == 0):
+			print processed_rows, processed_rows / (time.time() - start_time)
 
 	print processed_rows / (time.time() - start_time)
 
