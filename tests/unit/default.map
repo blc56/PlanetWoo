@@ -1,26 +1,30 @@
 MAP
 
+
+SIZE 256 256
+
 EXTENT -1000.0 -1000.0 1000.0 1000.0
 
 OUTPUTFORMAT
 	NAME agg_png
 	DRIVER AGG/PNG
-	IMAGEMODE RGB
+	IMAGEMODE RGBA
 	MIMETYPE "image/png"
 	FORMATOPTION "INTERLACE=OFF"
+	TRANSPARENT TRUE
 END
 
 IMAGETYPE agg_png
 
 PROJECTION
-	"init=epsg:3395"
+	"init=epsg:3857"
 END
 
 WEB
 	IMAGEPATH "/tmp/"
 	METADATA
 		"ows_title" "exo_map"
-		"wms_srs" "EPSG:3395" "ows_onlineresource" 'http://www.excensusonline.com'
+		"wms_srs" "EPSG:3857" "ows_onlineresource" 'http://www.excensusonline.com'
 		"wms_feature_info_mime_type" "application/json"
 		"ows_enable_request" "*" 
 		"wms_enable_request" "*"
@@ -32,11 +36,11 @@ LAYER
 	DUMP TRUE #mystery directive?	
 	NAME "poly_fill"
 	PROJECTION
-		"init=epsg:3395"
+		"init=epsg:3857"
 	END
 
 	TYPE POLYGON
-	STATUS ON
+	STATUS DEFAULT
 
 	DATA "test_geo/webmerc_northamerica/north_america.shp"
 
