@@ -8,6 +8,7 @@ import tiletree.mapserver
 import tiletree.shapefile
 import tiletree.postgres
 import tiletree.pil
+import tiletree.splitstorage
 
 def null_test():
 	storage_manager = tiletree.NullStorageManager()
@@ -43,7 +44,7 @@ def mapserver_render_test():
 	#storage_manager = tiletree.fsstorage.FSStorageManager()
 	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'])
+	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
 	generator = tiletree.QuadTreeGenerator()
 	min_x, min_y, max_x, max_y = cutter.bbox()
 	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=15)
@@ -91,18 +92,29 @@ def vector_tile_render_test():
 	renderer = tiletree.mapserver.MapServerRenderer(open('vector_tiles.map','r').read(),['poly_fill'])
 	tiletree.mapserver.render_vector_tiles(renderer, "dbname=planetwoo user=guidek12", "tile_geom", "poly_fill")
 
+def meta_tile_mapserver_test():
+	#storage_manager = tiletree.fsstorage.FSStorageManager()
+	backend_storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
+	storage_manager = tiletree.splitstorage.SplitStorageManager(backend_storage_manager, 3)
+	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
+	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
+	generator = tiletree.QuadTreeGenerator()
+	min_x, min_y, max_x, max_y = cutter.bbox()
+	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=12)
+
 def main():
 	#null_test()
 	#null_fs_tree_test()
 	#null_csv_tree_test()
 	#shapefile_cutter_test()
-	mapserver_render_test()
+	#mapserver_render_test()
 	#pil_render_test()
 	#postgres_test()
 	#geom_builder_csv_test()
 	#geom_builder_shapefile_test()
 	#individual_geom_builder_shapefile_test()
 	#vector_tile_render_test()
+	meta_tile_mapserver_test()
 	pass
 
 if( __name__ == '__main__'):

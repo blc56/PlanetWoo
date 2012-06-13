@@ -15,6 +15,15 @@ import shapely.speedups
 	#shapely.speedups.enable()
 	#print "SPEEDUP?"
 
+class NullGeomCutter:
+	def __init__(self):
+		pass
+
+	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
+		#raise Exception("Not implemented")
+		#return None
+		return 0
+
 ##\brief A simple, QuadTreeNode
 #
 class QuadTreeGenNode:
@@ -48,6 +57,56 @@ class QuadTreeGenNode:
 	def to_dict(self):
 		return copy.copy(self.__dict__)
 
+	def split(self, cutter=NullGeomCutter()):
+		this_zoom = self.zoom_level + 1
+		min_x0 = self.min_x
+		min_y0 = self.min_y
+		max_x0 = self.min_x + (self.max_x - self.min_x) / 2.0
+		max_y0 = self.min_y + (self.max_y - self.min_y) / 2.0
+		tile_x0 = self.tile_x * 2
+		tile_y0 = self.tile_y * 2
+		geom0 = cutter.cut(min_x0, min_y0, max_x0, max_y0, self.geom)
+
+		min_x1 = max_x0
+		min_y1 = self.min_y
+		max_x1 = self.max_x
+		max_y1 = max_y0
+		tile_x1 = self.tile_x * 2 + 1
+		tile_y1 = self.tile_y * 2
+		geom1 = cutter.cut(min_x1, min_y1, max_x1, max_y1, self.geom)
+
+		min_x2 = self.min_x
+		min_y2 = max_y0
+		max_x2 = max_x0
+		max_y2 = self.max_y
+		tile_x2 = self.tile_x * 2
+		tile_y2 = self.tile_y * 2 + 1
+		geom2 = cutter.cut(min_x2, min_y2, max_x2, max_y2, self.geom)
+
+		min_x3 = max_x0
+		min_y3 = max_y0
+		max_x3 = self.max_x
+		max_y3 = self.max_y
+		tile_x3 = self.tile_x * 2 + 1
+		tile_y3 = self.tile_y * 2 + 1
+		geom3 = cutter.cut(min_x3, min_y3, max_x3, max_y3, self.geom)
+
+		#do the tile coordinates slippy map style instead of TMS style
+		child0 = QuadTreeGenNode(self.child_0, min_x0, min_y0, max_x0, max_y0, this_zoom,
+				geom=geom0, tile_x=tile_x0, tile_y=tile_y2)
+
+		child1 = QuadTreeGenNode(self.child_1, min_x1, min_y1, max_x1, max_y1, this_zoom,
+				geom=geom1, tile_x=tile_x1, tile_y=tile_y3)
+
+		child2 = QuadTreeGenNode(self.child_2, min_x2, min_y2, max_x2, max_y2, this_zoom,
+				geom=geom2, tile_x=tile_x2, tile_y=tile_y0)
+
+		child3 = QuadTreeGenNode(self.child_3, min_x3, min_y3, max_x3, max_y3, this_zoom,
+				geom=geom3, tile_x=tile_x3, tile_y=tile_y1)
+
+		return (child0, child1, child2, child3)
+		
+
 	def to_json(self):
 		self_dict = self.to_dict()
 		if(self.geom):
@@ -76,15 +135,6 @@ class NullStorageManager:
 
 	def close(self):
 		pass
-
-class NullGeomCutter:
-	def __init__(self):
-		pass
-
-	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
-		#raise Exception("Not implemented")
-		#return None
-		return 0
 
 class NullRenderer:
 	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
@@ -238,66 +288,15 @@ class QuadTreeGenerator:
 			node.child_1 = self.next_node_id + 1
 			node.child_2 = self.next_node_id + 2
 			node.child_3 = self.next_node_id + 3
+			self.next_node_id += 4
+
 		storage_manager.store(node, this_img_bytes)
 
 		#split this node 
 		if(node.is_leaf):
 			return []
 
-		#calculate new coordinates for child nodes
-		#assume mercator when create tile coordinates
-		#I guess I hate mapping
-		this_zoom = node.zoom_level + 1
-		min_x0 = node.min_x
-		min_y0 = node.min_y
-		max_x0 = node.min_x + (node.max_x - node.min_x) / 2.0
-		max_y0 = node.min_y + (node.max_y - node.min_y) / 2.0
-		tile_x0 = node.tile_x * 2
-		tile_y0 = node.tile_y * 2
-		geom0 = cutter.cut(min_x0, min_y0, max_x0, max_y0, node.geom)
-
-		min_x1 = max_x0
-		min_y1 = node.min_y
-		max_x1 = node.max_x
-		max_y1 = max_y0
-		tile_x1 = node.tile_x * 2 + 1
-		tile_y1 = node.tile_y * 2
-		geom1 = cutter.cut(min_x1, min_y1, max_x1, max_y1, node.geom)
-
-		min_x2 = node.min_x
-		min_y2 = max_y0
-		max_x2 = max_x0
-		max_y2 = node.max_y
-		tile_x2 = node.tile_x * 2
-		tile_y2 = node.tile_y * 2 + 1
-		geom2 = cutter.cut(min_x2, min_y2, max_x2, max_y2, node.geom)
-
-		min_x3 = max_x0
-		min_y3 = max_y0
-		max_x3 = node.max_x
-		max_y3 = node.max_y
-		tile_x3 = node.tile_x * 2 + 1
-		tile_y3 = node.tile_y * 2 + 1
-		geom3 = cutter.cut(min_x3, min_y3, max_x3, max_y3, node.geom)
-
-		#do the tile coordinates slippy map style instead of TMS style
-		child0 = QuadTreeGenNode(self.next_node_id, min_x0, min_y0, max_x0, max_y0, this_zoom,
-				geom=geom0, tile_x=tile_x0, tile_y=tile_y2)
-		self.next_node_id += 1
-
-		child1 = QuadTreeGenNode(self.next_node_id, min_x1, min_y1, max_x1, max_y1, this_zoom,
-				geom=geom1, tile_x=tile_x1, tile_y=tile_y3)
-		self.next_node_id += 1
-
-		child2 = QuadTreeGenNode(self.next_node_id, min_x2, min_y2, max_x2, max_y2, this_zoom,
-				geom=geom2, tile_x=tile_x2, tile_y=tile_y0)
-		self.next_node_id += 1
-
-		child3 = QuadTreeGenNode(self.next_node_id, min_x3, min_y3, max_x3, max_y3, this_zoom,
-				geom=geom3, tile_x=tile_x3, tile_y=tile_y1)
-		self.next_node_id += 1
-
-		return (child0, child1, child2, child3)
+		return node.split(cutter)
 
 	def generate(self, min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=17):
 		stats = QuadTreeGenStats()
