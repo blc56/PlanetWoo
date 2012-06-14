@@ -3,6 +3,7 @@ import tiletree
 from psycopg2 import *
 import os.path
 import math
+import StringIO
 
 class PostgresStorageManager:
 	def __init__(self, connect_str, node_table, image_table):
@@ -58,15 +59,19 @@ img_bytes BYTEA
 		#for z in [zoom_level]:
 
 			print z, x, y
+			node_id = tiletree.build_node_id(z, x, y)
 
-			#curs.execute("SELECT * from %(table)s WHERE zoom_level = %%(z)s and tile_x = %%(x)s and tile_y = %%(y)s" % {'table': self.node_table}, {'z': z, 'x': x, 'y': y})
-			#node = curs.fetchone()
-			#if(node):
-				#print node[4]
-				#return open(self.get_image_path(node[4]), 'r')
+			curs.execute(\
+"""
+SELECT img_bytes FROM %s nodes, %s images
+WHERE nodes.node_id = %%s AND images.image_id = nodes.image_id
+""" % (self.node_table, self.image_table,), (node_id,) )
+			result = curs.fetchone()
+			if(result):
+				return StringIO.StringIO(result[0])
 
-			x = math.floor(x/2.0)
-			y = math.floor(y/2.0)
+			x = int(math.floor(x/2.0))
+			y = int(math.floor(y/2.0))
 
 		raise Exception("Tile not found")
 

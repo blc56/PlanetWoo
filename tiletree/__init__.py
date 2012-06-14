@@ -114,8 +114,7 @@ class QuadTreeGenNode:
 		child3 = QuadTreeGenNode(None, min_x3, min_y3, max_x3, max_y3, this_zoom,
 				geom=geom3, tile_x=tile_x3, tile_y=tile_y1)
 
-		#the funky order here is to jive with SplitStorageManager
-		return (child2, child3, child1, child0)
+		return (child0, child1, child2, child3)
 		
 
 	def to_json(self):
@@ -368,4 +367,9 @@ def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 	#wait for everyone to finish
 	for thread in threads:
 		thread.join()
+
+def cmp_nodes(node1, node2):
+	if(node1.tile_x == node2.tile_x):
+		return node1.tile_y < node2.tile_y
+	return node1.tile_x < node2.tile_x
 

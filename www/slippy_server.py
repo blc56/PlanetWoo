@@ -25,9 +25,7 @@ def main():
 	port = 8080
 	storage_manager =\
 		tiletree.postgres.PostgresStorageManager(\
-		'dbname=planetwoo user=guidek12','north_america_tree',
-		image_dir='/srv/excensus/planetwoo/planetwoo/tests/unit/images/')
-		#tiletree.fsstorage.FSStorageManager(image_prefix='/srv/excensus/planetwoo/planetwoo/tests/unit/images/')
+		'dbname=planetwoo user=guidek12','tile_nodes','tile_images')
 
 	app = tornado.web.Application([
 		(r"/slippy_map/([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png", TileFetcher,

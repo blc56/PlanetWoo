@@ -44,6 +44,8 @@ class SplitStorageManager:
 				new_child_nodes.extend(this_node.split())
 			child_nodes = new_child_nodes
 
+		child_nodes.sort(key=lambda x:(x.tile_x, x.tile_y))
+
 		for node, img in zip(child_nodes, child_images):
 			child_img_bytes = StringIO.StringIO()
 			img.save(child_img_bytes, 'png')

@@ -98,7 +98,7 @@ def meta_tile_mapserver_test():
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
 	renderer = tiletree.mapserver.MapServerRenderer(open('split_default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
 	min_x, min_y, max_x, max_y = cutter.bbox()
-	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=3)
+	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=2)
 	backend_storage_manager.close()
 
 def mapserver_mt_test():
@@ -156,8 +156,8 @@ def main():
 	#geom_builder_shapefile_test()
 	#individual_geom_builder_shapefile_test()
 	#vector_tile_render_test()
-	#meta_tile_mapserver_test()
-	mapserver_mt_test()
+	meta_tile_mapserver_test()
+	#mapserver_mt_test()
 	pass
 
 if( __name__ == '__main__'):
