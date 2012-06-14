@@ -10,6 +10,7 @@ import shapely.wkt
 import json
 import time
 import shapely.speedups
+import multiprocessing
 
 #if(shapely.speedups.available):
 	#shapely.speedups.enable()
@@ -127,6 +128,11 @@ class QuadTreeGenNode:
 		if(self.geom):
 			self.geom = shapely.wkt.loads(self.geom)
 
+	def to_generator_job(self, storage_manager, renderer, cutter, stop_level):
+		return GeneratorJob(self.min_x, self.min_y, self.max_x, self.max_y,
+			self.zoom_level, self.tile_x, self.tile_y, stop_level,
+			storage_manager, renderer, cutter)
+
 def quad_tree_gen_node_from_json(json_str):
 	node = QuadTreeGenNode()
 	node.from_json(json_str)
@@ -141,6 +147,9 @@ class NullStorageManager:
 
 	def store(self, node, img_bytes):
 		pass
+
+	def __del__(self):
+		self.close()
 
 	def close(self):
 		pass
@@ -260,57 +269,102 @@ class QuadTreeGenStats:
 			return self.nodes_rendered / (time.time() - self.start_time) 
 		return float('nan')
 
-##\brief A simple, QuadTree structure
-#
-class QuadTreeGenerator:
-	def __init__(self):
-		pass
+class GeneratorJob:
+	def __init__(self, min_x, min_y, max_x, max_y, start_level,
+			start_tile_x, start_tile_y, stop_level, storage_manager,
+			renderer, cutter):
+		self.min_x = min_x
+		self.min_y = min_y
+		self.max_x = max_x
+		self.max_y = max_y
+		self.start_level = start_level
+		self.start_tile_x = start_tile_x
+		self.start_tile_y = start_tile_y
+		self.stop_level = stop_level
+		self.storage_manager = storage_manager
+		self.renderer=renderer
+		self.cutter = cutter
 
-	def generate_node(self, node, cutter, storage_manager, renderer, num_levels, stats):
+def generate_node(node, cutter, storage_manager, renderer, stop_level, stats):
 
-		#is this node a leaf?
-		node.is_blank, node.is_full, node.is_leaf =\
-			renderer.tile_info(node.geom, node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)
+	#is this node a leaf?
+	node.is_blank, node.is_full, node.is_leaf =\
+		renderer.tile_info(node.geom, node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)
 
-		if(node.zoom_level >= num_levels):
-			node.is_leaf = True
+	if(node.zoom_level >= stop_level):
+		node.is_leaf = True
 
-		#render this node
-		node.image_id, this_img_bytes =\
-			renderer.render(node.geom, node.is_blank, node.is_full, node.is_leaf,
-				node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level,
-				node.tile_x, node.tile_y)
+	#render this node
+	node.image_id, this_img_bytes =\
+		renderer.render(node.geom, node.is_blank, node.is_full, node.is_leaf,
+			node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level,
+			node.tile_x, node.tile_y)
 
-		stats.track(node.is_blank, node.is_full)
-		
-		storage_manager.store(node, this_img_bytes)
+	stats.track(node.is_blank, node.is_full)
+	
+	storage_manager.store(node, this_img_bytes)
 
-		#split this node 
-		if(node.is_leaf):
-			return []
+	#split this node 
+	if(node.is_leaf):
+		return []
 
-		return node.split(cutter)
+	return node.split(cutter)
 
-	def generate(self, min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=17):
-		stats = QuadTreeGenStats()
-		stats.reset_timer()
+def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17):
+	stats = QuadTreeGenStats()
+	stats.reset_timer()
 
-		#create the initial QuadTreeGenNode
-		root_node = QuadTreeGenNode(None,min_x,min_y,max_x,max_y,0)
-		root_geom = cutter.cut(min_x, min_y, max_x, max_y)
-		root_node.geom = root_geom
+	#create the initial QuadTreeGenNode
+	root_node = QuadTreeGenNode(None,min_x,min_y,max_x,max_y,
+		zoom_level=start_level, tile_x=start_tile_x, tile_y=start_tile_y)
+	root_geom = cutter.cut(min_x, min_y, max_x, max_y)
+	root_node.geom = root_geom
 
-		nodes_to_render = [root_node]
+	nodes_to_render = [root_node]
 
-		while(len(nodes_to_render) > 0):
-			this_node = nodes_to_render.pop()
-			#print this_node.zoom_level, this_node.tile_x, this_node.tile_y, len(nodes_to_render)
-			children = self.generate_node(this_node, cutter, storage_manager, renderer, num_levels, stats)
-			nodes_to_render.extend(children)
+	while(len(nodes_to_render) > 0):
+		this_node = nodes_to_render.pop()
+		#print this_node.zoom_level, this_node.tile_x, this_node.tile_y, len(nodes_to_render)
+		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats)
+		nodes_to_render.extend(children)
 
-			if(stats.get_nodes_rendered() % 100 == 0):
-				print stats
+		if(stats.get_nodes_rendered() % 100 == 0):
+			print stats
 
-		stats.stop_timer()
-		print stats
+	stats.stop_timer()
+	print stats
+
+def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
+	#build the arguments that are sent to worker processes
+	job_args = []
+	for job in generator_jobs:
+		job_args.append((job.min_x, job.min_y, job.max_x, job.max_y,
+			job.storage_manager, job.renderer, job.cutter,
+			job.start_level, job.start_tile_x,
+			job.start_tile_y, job.stop_level))
+
+	#line up
+	threads = []
+	for x in range(num_threads):
+		thread = multiprocessing.Process(target=generate, args=job_args.pop())
+		threads.append(thread)
+
+	#off to the races
+	for thread in threads:
+		thread.start()
+
+	#check every 10 seconds to see if a thread has finished 
+	while(len(job_args) > 0):
+		for x in range(len(threads)):
+			if(not threads[x].is_alive()):
+				del threads[x]
+				new_thread = multiprocessing.Process(target=generate, args=job_args.pop())
+				threads.append(new_thread)
+				new_thread.start()
+				break
+		time.sleep(10)
+
+	#wait for everyone to finish
+	for thread in threads:
+		thread.join()
 
