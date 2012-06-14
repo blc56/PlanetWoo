@@ -9,6 +9,7 @@ import tiletree.shapefile
 import tiletree.postgres
 import tiletree.pil
 import tiletree.splitstorage
+import StringIO
 
 def null_test():
 	storage_manager = tiletree.NullStorageManager()
@@ -39,14 +40,14 @@ def shapefile_cutter_test():
 
 def mapserver_render_test():
 	#storage_manager = tiletree.fsstorage.FSStorageManager()
-	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
+	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), None)
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
 	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
 	min_x, min_y, max_x, max_y = cutter.bbox()
-	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=15)
+	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=4)
 
 def pil_render_test():
-	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
+	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), None)
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
 	renderer = tiletree.pil.PILRenderer()
 	#renderer = tiletree.NullRenderer()
@@ -54,8 +55,10 @@ def pil_render_test():
 	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=6)
 
 def postgres_test():
-	storage_manager = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'north_america_tree')
-	storage_manager.fetch(0, 0, 0)
+	storage_manager = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'tile_nodes', 'tile_images')
+	storage_manager.recreate_tables()
+	storage_manager.store(tiletree.QuadTreeGenNode(), StringIO.StringIO(''))
+	storage_manager.close()
 
 def geom_builder_csv_test():
 	storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), None,
@@ -89,52 +92,57 @@ def vector_tile_render_test():
 
 def meta_tile_mapserver_test():
 	#storage_manager = tiletree.fsstorage.FSStorageManager()
-	#backend_storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), open('images.csv','w'))
-	backend_storage_manager = tiletree.csvstorage.CSVStorageManager(open('tree.csv','w'), None)
+	backend_storage_manager = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'tile_nodes', 'tile_images')
+	backend_storage_manager.recreate_tables()
 	storage_manager = tiletree.splitstorage.SplitStorageManager(backend_storage_manager, 3)
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
+	renderer = tiletree.mapserver.MapServerRenderer(open('split_default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
 	min_x, min_y, max_x, max_y = cutter.bbox()
-	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=5)
+	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=3)
+	backend_storage_manager.close()
 
 def mapserver_mt_test():
 	#use a node the calculate the parameters for each job
 	total_bbox = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america').bbox()
 	root_node = tiletree.QuadTreeGenNode(min_x=total_bbox[0], min_y=total_bbox[1], max_x=total_bbox[2], max_y=total_bbox[3])
 	job_nodes = root_node.split()
-	stop_level = 5
+	stop_level = 3
 
-	backend_storage_manager0 = tiletree.csvstorage.CSVStorageManager(open('tree_0.csv','w'), None)
+	backend_storage_manager0 = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'tile_nodes', 'tile_images')
+	backend_storage_manager0.recreate_tables()
 	storage_manager0 = tiletree.splitstorage.SplitStorageManager(backend_storage_manager0, 3)
 
-	backend_storage_manager1 = tiletree.csvstorage.CSVStorageManager(open('tree_1.csv','w'), None)
+	backend_storage_manager1 = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'tile_nodes', 'tile_images')
+	backend_storage_manager1.recreate_tables()
 	storage_manager1 = tiletree.splitstorage.SplitStorageManager(backend_storage_manager1, 3)
 
-	backend_storage_manager2 = tiletree.csvstorage.CSVStorageManager(open('tree_2.csv','w'), None)
+	backend_storage_manager2 = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'tile_nodes', 'tile_images')
+	backend_storage_manager2.recreate_tables()
 	storage_manager2 = tiletree.splitstorage.SplitStorageManager(backend_storage_manager2, 3)
 
-	backend_storage_manager3 = tiletree.csvstorage.CSVStorageManager(open('tree_3.csv','w'), None)
+	backend_storage_manager3 = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=guidek12', 'tile_nodes', 'tile_images')
+	backend_storage_manager3.recreate_tables()
 	storage_manager3 = tiletree.splitstorage.SplitStorageManager(backend_storage_manager3, 3)
 
 	jobs = []
 	jobs.append( job_nodes[0].to_generator_job(storage_manager0,
-			tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256),
+			tiletree.mapserver.MapServerRenderer(open('split_default.map','r').read(),['poly_fill'], img_w=256, img_h=256),
 			tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america'),
 			stop_level) )
 	jobs.append( job_nodes[1].to_generator_job(storage_manager1,
-			tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256),
+			tiletree.mapserver.MapServerRenderer(open('split_default.map','r').read(),['poly_fill'], img_w=256, img_h=256),
 			tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america'),
 			stop_level) )
 	jobs.append( job_nodes[2].to_generator_job(storage_manager2,
-			tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256),
+			tiletree.mapserver.MapServerRenderer(open('split_default.map','r').read(),['poly_fill'], img_w=256, img_h=256),
 			tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america'),
 			stop_level) )
 	jobs.append( job_nodes[3].to_generator_job(storage_manager3,
-			tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256),
+			tiletree.mapserver.MapServerRenderer(open('split_default.map','r').read(),['poly_fill'], img_w=256, img_h=256),
 			tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america'),
 			stop_level) )
 
-	tiletree.generate_mt(jobs, num_threads=1)
+	tiletree.generate_mt(jobs, num_threads=4)
 
 def main():
 	#null_test()
@@ -148,8 +156,8 @@ def main():
 	#geom_builder_shapefile_test()
 	#individual_geom_builder_shapefile_test()
 	#vector_tile_render_test()
-	meta_tile_mapserver_test()
-	#mapserver_mt_test()
+	#meta_tile_mapserver_test()
+	mapserver_mt_test()
 	pass
 
 if( __name__ == '__main__'):

@@ -28,14 +28,9 @@ class SplitStorageManager:
 			child_images.append(big_image.crop((min_x, min_y, max_x, max_y)))
 
 		#re-order things so the coordinates line up
-		return (child_images[1], child_images[3], child_images[0], child_images[2])
-
-	def split_node(self, node):
-		ret_nodes =  node.split(self.cutter)
-		return ret_nodes
+		return child_images
 
 	def store(self, node, img_bytes):
-		##TODO: something else here!!
 		if(node.is_blank or node.is_full):
 			return self.backend.store(node, img_bytes)
 
@@ -43,8 +38,11 @@ class SplitStorageManager:
 
 		child_nodes = [node]
 		for x in range(self.num_splits):
-			this_node = child_nodes.pop()
-			child_nodes.extend(self.split_node(this_node))
+			new_child_nodes = []
+			while(len(child_nodes) > 0):
+				this_node = child_nodes.pop()
+				new_child_nodes.extend(this_node.split())
+			child_nodes = new_child_nodes
 
 		for node, img in zip(child_nodes, child_images):
 			child_img_bytes = StringIO.StringIO()

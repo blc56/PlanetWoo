@@ -2,6 +2,7 @@
 import tiletree
 import os
 import shapely.wkt
+from psycopg2 import *
 
 class CSVStorageManager:
 	def __init__(self, tree_file, image_file=None, image_prefix='images/', image_suffix='.png',
@@ -29,6 +30,8 @@ class CSVStorageManager:
 		return self.image_prefix + repr(node.image_id) + self.image_suffix
 
 	def store_image(self, node, img_bytes):
+		if(self.image_file == None):
+			return
 		img_fn = self._get_storage_path(node)
 		if(not os.path.exists(img_fn)):
 			#create the image
@@ -55,8 +58,7 @@ class CSVStorageManager:
 		self.tree_file.write(','.join(csv_fields))
 		self.tree_file.write('\n')
 
-		if(self.image_file):
-			self.store_image(node, img_bytes)
+		self.store_image(node, img_bytes)
 
 	def close(self):
 		self.tree_file.close()

@@ -114,7 +114,8 @@ class QuadTreeGenNode:
 		child3 = QuadTreeGenNode(None, min_x3, min_y3, max_x3, max_y3, this_zoom,
 				geom=geom3, tile_x=tile_x3, tile_y=tile_y1)
 
-		return (child0, child1, child2, child3)
+		#the funky order here is to jive with SplitStorageManager
+		return (child2, child3, child1, child0)
 		
 
 	def to_json(self):
