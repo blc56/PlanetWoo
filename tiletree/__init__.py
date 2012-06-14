@@ -24,29 +24,38 @@ class NullGeomCutter:
 		#return None
 		return 0
 
+def build_node_id(zoom_level, tile_x, tile_y):
+		#this node id scheme assumes that we won't have a zoom level
+		#over 22
+	return (tile_y + (tile_x<<22) + (zoom_level<<(22+22)))
+
 ##\brief A simple, QuadTreeNode
 #
 class QuadTreeGenNode:
 	##\param node_id - integer
 	#
-	def __init__(self, node_id=0, min_x=0, min_y=0, max_x=0, max_y=0, zoom_level=0,
+	def __init__(self, node_id=None, min_x=0, min_y=0, max_x=0, max_y=0, zoom_level=0,
 			image_id=None, is_leaf=True, is_blank=True, is_full=False,
-			child_0=None, child_1=None, child_2=None, child_3=None,
+			#child_0=None, child_1=None, child_2=None, child_3=None,
 			geom=None,tile_x=0, tile_y=0):
+		if(node_id == None):
+			node_id = build_node_id(zoom_level, tile_x, tile_y)
 		self.node_id = node_id
 		self.min_x = min_x
 		self.min_y = min_y
 		self.max_x = max_x
 		self.max_y = max_y
 		self.zoom_level = zoom_level
+		if(image_id == None):
+			image_id = build_node_id(zoom_level, tile_x, tile_y)
 		self.image_id = image_id
 		self.is_leaf = is_leaf
 		self.is_blank = is_blank
 		self.is_full = is_full
-		self.child_0 = child_0
-		self.child_1 = child_1
-		self.child_2 = child_2
-		self.child_3 = child_3
+		#self.child_0 = child_0
+		#self.child_1 = child_1
+		#self.child_2 = child_2
+		#self.child_3 = child_3
 		self.geom = geom
 		self.tile_x = tile_x
 		self.tile_y = tile_y
@@ -92,16 +101,16 @@ class QuadTreeGenNode:
 		geom3 = cutter.cut(min_x3, min_y3, max_x3, max_y3, self.geom)
 
 		#do the tile coordinates slippy map style instead of TMS style
-		child0 = QuadTreeGenNode(self.child_0, min_x0, min_y0, max_x0, max_y0, this_zoom,
+		child0 = QuadTreeGenNode(None, min_x0, min_y0, max_x0, max_y0, this_zoom,
 				geom=geom0, tile_x=tile_x0, tile_y=tile_y2)
 
-		child1 = QuadTreeGenNode(self.child_1, min_x1, min_y1, max_x1, max_y1, this_zoom,
+		child1 = QuadTreeGenNode(None, min_x1, min_y1, max_x1, max_y1, this_zoom,
 				geom=geom1, tile_x=tile_x1, tile_y=tile_y3)
 
-		child2 = QuadTreeGenNode(self.child_2, min_x2, min_y2, max_x2, max_y2, this_zoom,
+		child2 = QuadTreeGenNode(None, min_x2, min_y2, max_x2, max_y2, this_zoom,
 				geom=geom2, tile_x=tile_x2, tile_y=tile_y0)
 
-		child3 = QuadTreeGenNode(self.child_3, min_x3, min_y3, max_x3, max_y3, this_zoom,
+		child3 = QuadTreeGenNode(None, min_x3, min_y3, max_x3, max_y3, this_zoom,
 				geom=geom3, tile_x=tile_x3, tile_y=tile_y1)
 
 		return (child0, child1, child2, child3)
@@ -140,37 +149,28 @@ class NullRenderer:
 	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
 		self.img_w = img_w
 		self.img_h = img_h
-		self.blank_img_id = None
+		self.blank_img_id = -1
 		self.blank_img_bytes = None 
-		self.full_img_id = None
+		self.full_img_id = -2
 		self.full_img_bytes = None 
-		self.next_img_id = 0
 
 	def render_full(self):
-		if(self.full_img_id == None):
-			self.full_img_id = self.next_img_id
-
+		if(self.full_img_bytes == None):
 			palette = ImagePalette.ImagePalette("RGB").palette
 			image = Image.new("P",(self.img_w,self.img_h),0)
 			image.putpalette(palette)
 			self.full_img_bytes = StringIO.StringIO()
 			image.save(self.full_img_bytes, 'png')
 
-			self.next_img_id += 1
-
 		return (self.full_img_id, self.full_img_bytes)
 
 	def render_blank(self):
-		if(self.blank_img_id == None):
-			self.blank_img_id = self.next_img_id
-
+		if(self.blank_img_bytes == None):
 			palette = ImagePalette.ImagePalette("RGB").palette
 			image = Image.new("P",(self.img_w,self.img_h),0)
 			image.putpalette(palette)
 			self.blank_img_bytes = StringIO.StringIO()
 			image.save(self.blank_img_bytes, 'png')
-
-			self.next_img_id += 1
 
 		return (self.blank_img_id, self.blank_img_bytes)
 
@@ -195,19 +195,19 @@ class NullRenderer:
 	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
 		return self.render_blank()
 
-	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
 		return (0, StringIO.StringIO('') )
 
 class Renderer(NullRenderer):
 	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
 		NullRenderer.__init__(self, img_w, img_h, img_prefix)
 
-	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
 		if(is_blank):
 			return self.render_blank()
 		elif(is_full):
 			return self.render_full()
-		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level)
+		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y)
 
 class QuadTreeGenStats:
 	def __init__(self):
@@ -264,7 +264,7 @@ class QuadTreeGenStats:
 #
 class QuadTreeGenerator:
 	def __init__(self):
-		self.next_node_id = 0
+		pass
 
 	def generate_node(self, node, cutter, storage_manager, renderer, num_levels, stats):
 
@@ -278,18 +278,11 @@ class QuadTreeGenerator:
 		#render this node
 		node.image_id, this_img_bytes =\
 			renderer.render(node.geom, node.is_blank, node.is_full, node.is_leaf,
-				node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)
+				node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level,
+				node.tile_x, node.tile_y)
 
 		stats.track(node.is_blank, node.is_full)
 		
-		#store this node
-		if(not node.is_leaf):
-			node.child_0 = self.next_node_id
-			node.child_1 = self.next_node_id + 1
-			node.child_2 = self.next_node_id + 2
-			node.child_3 = self.next_node_id + 3
-			self.next_node_id += 4
-
 		storage_manager.store(node, this_img_bytes)
 
 		#split this node 
@@ -301,13 +294,11 @@ class QuadTreeGenerator:
 	def generate(self, min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=17):
 		stats = QuadTreeGenStats()
 		stats.reset_timer()
-		self.next_node_id = 0
 
 		#create the initial QuadTreeGenNode
-		root_node = QuadTreeGenNode(self.next_node_id,min_x,min_y,max_x,max_y,0)
+		root_node = QuadTreeGenNode(None,min_x,min_y,max_x,max_y,0)
 		root_geom = cutter.cut(min_x, min_y, max_x, max_y)
 		root_node.geom = root_geom
-		self.next_node_id += 1
 
 		nodes_to_render = [root_node]
 

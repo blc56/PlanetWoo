@@ -19,12 +19,11 @@ class MapServerRenderer(Renderer):
 		}
 		self.mapfile = mapscript.fromstring(self.mapfile_template % template_args)
 
-	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
 		self.mapfile.setExtent(min_x, min_y, max_x, max_y)
 		img = self.mapfile.draw()
 
-		img_id = self.next_img_id
-		self.next_img_id += 1
+		img_id = build_node_id(zoom_level, tile_x, tile_y)
 		result =  (img_id,
 				StringIO.StringIO(img.getBytes()))
 		return result

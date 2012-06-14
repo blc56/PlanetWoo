@@ -100,7 +100,7 @@ def meta_tile_mapserver_test():
 	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
 	generator = tiletree.QuadTreeGenerator()
 	min_x, min_y, max_x, max_y = cutter.bbox()
-	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=12)
+	generator.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, num_levels=2)
 
 def main():
 	#null_test()

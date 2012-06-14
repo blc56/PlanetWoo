@@ -9,11 +9,7 @@ class SplitStorageManager:
 	def __init__(self, backend_storage_manager, num_splits):
 		self.backend = backend_storage_manager
 		self.num_splits = num_splits
-		self.next_node_id = 0
-		self.next_img_id = 0
 		self.cutter = tiletree.NullGeomCutter()
-		self.blank_img_id = None
-		self.full_img_id = None
 
 	def split_img(self, img_bytes):
 		big_image = Image.open(img_bytes)
@@ -35,40 +31,12 @@ class SplitStorageManager:
 		return (child_images[1], child_images[3], child_images[0], child_images[2])
 
 	def split_node(self, node):
-		node.child_0 = self.next_node_id
-		self.next_node_id += 1
-		node.child_1 = self.next_node_id
-		self.next_node_id += 1
-		node.child_2 = self.next_node_id
-		self.next_node_id += 1
-		node.child_3 = self.next_node_id
-		self.next_node_id += 1
-
 		ret_nodes =  node.split(self.cutter)
-		ret_nodes[0].image_id = self.next_img_id
-		self.next_img_id += 1
-		ret_nodes[1].image_id = self.next_img_id
-		self.next_img_id += 1
-		ret_nodes[2].image_id = self.next_img_id
-		self.next_img_id += 1
-		ret_nodes[3].image_id = self.next_img_id
-		self.next_img_id += 1
-
 		return ret_nodes
 
 	def store(self, node, img_bytes):
 		##TODO: something else here!!
-		if(node.is_blank):
-			if(self.blank_img_id == None):
-				self.blank_img_id = self.next_img_id
-				self.next_img_id +=1
-			node.image_id = self.blank_img_id
-			return self.backend.store(node, img_bytes)
-		elif(node.is_full):
-			if(self.full_img_id == None):
-				self.full_img_id = self.next_img_id
-				self.next_img_id +=1
-			node.image_id = self.full_img_id
+		if(node.is_blank or node.is_full):
 			return self.backend.store(node, img_bytes)
 
 		child_images = self.split_img(img_bytes)
