@@ -20,6 +20,7 @@ class MapServerRenderer(Renderer):
 		self.mapfile = mapscript.fromstring(self.mapfile_template % template_args)
 
 	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
+		#print zoom_level, tile_x, tile_y, min_x, min_y, max_x, max_y
 		self.mapfile.setExtent(min_x, min_y, max_x, max_y)
 		img = self.mapfile.draw()
 

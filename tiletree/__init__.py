@@ -22,8 +22,7 @@ class NullGeomCutter:
 
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
 		#raise Exception("Not implemented")
-		#return None
-		return 0
+		return None
 
 def build_node_id(zoom_level, tile_x, tile_y):
 		#this node id scheme assumes that we won't have a zoom level
@@ -188,6 +187,23 @@ class NullRenderer:
 		is_blank = False
 		is_full = False
 		is_leaf = False
+		return (is_blank, is_full, is_leaf)
+
+	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+		return self.render_blank()
+
+	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
+		return (0, StringIO.StringIO('') )
+
+class Renderer(NullRenderer):
+	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
+		NullRenderer.__init__(self, img_w, img_h, img_prefix)
+
+	#\return (is_blank, is_full, is_leaf)
+	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
+		is_blank = False
+		is_full = False
+		is_leaf = False
 
 		if(geometry == None or geometry.is_empty):
 			is_blank = True
@@ -200,16 +216,6 @@ class NullRenderer:
 				is_leaf = True
 
 		return (is_blank, is_full, is_leaf)
-
-	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
-		return self.render_blank()
-
-	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
-		return (0, StringIO.StringIO('') )
-
-class Renderer(NullRenderer):
-	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
-		NullRenderer.__init__(self, img_w, img_h, img_prefix)
 
 	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
 		if(is_blank):
@@ -324,7 +330,8 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 
 	while(len(nodes_to_render) > 0):
 		this_node = nodes_to_render.pop()
-		#print this_node.zoom_level, this_node.tile_x, this_node.tile_y, len(nodes_to_render)
+		#print this_node.zoom_level, this_node.tile_x, this_node.tile_y, this_node.min_x, this_node.min_y,\
+			#this_node.max_x, this_node.max_y
 		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats)
 		nodes_to_render.extend(children)
 
@@ -372,4 +379,10 @@ def cmp_nodes(node1, node2):
 	if(node1.tile_x == node2.tile_x):
 		return node1.tile_y < node2.tile_y
 	return node1.tile_x < node2.tile_x
+
+def encode_img_bytes(img_bytes):
+	return img_bytes.encode('string_escape')
+
+def decode_img_bytes(img_bytes):
+	return img_bytes.decode('string_escape')
 

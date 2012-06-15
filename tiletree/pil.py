@@ -9,10 +9,8 @@ import StringIO
 import numpy
 
 def renderPILRing(image_draw, ring, draw_options, coord_translate_func):
-	#coords = numpy.array(ring.xy)
-	#image_draw.polygon([coord_translate_func(x) for x in coords], **draw_options)
-	#image_draw.polygon([(0, 0), (1, 1), (10, 1), (0, 0)], **draw_options)
-	pass
+	coords = numpy.array(ring.xy)
+	image_draw.polygon([coord_translate_func(x) for x in coords], **draw_options)
 
 def renderPILPolygon(image_draw, polygon, outer_ring_options, inner_ring_options, coord_translate_func):
 	renderPILRing(image_draw, polygon.exterior, outer_ring_options, coord_translate_func)
@@ -42,9 +40,9 @@ class PILRenderer(Renderer):
 			'fill': '#00FF00',
 		}
 
-	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
-		#image = Image.new("RGB", (self.img_w, self.img_h))
-		#drawing = ImageDraw.Draw(image)
+	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
+		image = Image.new("RGB", (self.img_w, self.img_h))
+		drawing = ImageDraw.Draw(image)
 
 		try:
 			x_scale = self.img_w / float(max_x - min_x)
@@ -58,13 +56,11 @@ class PILRenderer(Renderer):
 
 		translate_coord = lambda x : ( (x[0] - min_x) * x_scale, (max_y - x[1]) * y_scale )
 
-		#renderShape(drawing, geometry, self.outer_ring_options, self.inner_ring_options, translate_coord)
+		renderShape(drawing, geometry, self.outer_ring_options, self.inner_ring_options, translate_coord)
 
 		result = StringIO.StringIO()
-		#image.save(result, 'png')
-
-		img_id = self.next_img_id
-		self.next_img_id += 1
+		image.save(result, 'png')
+		img_id = build_node_id(zoom_level, tile_x, tile_y)
 
 		return (img_id, result)
 

@@ -2,7 +2,7 @@
 import tiletree
 import os
 import shapely.wkt
-from psycopg2 import *
+import psycopg2.extensions
 
 class CSVStorageManager:
 	def __init__(self, tree_file, image_file=None, image_prefix='images/', image_suffix='.png',
@@ -15,6 +15,8 @@ class CSVStorageManager:
 		self.fields = fields
 		self.img_w = float(img_w)
 		self.img_h = float(img_h)
+		self.blank_img_id = None
+		self.full_img_id = None
 
 		self.tree_file.write(','.join(self.fields))
 		self.tree_file.write('\n')
@@ -26,20 +28,24 @@ class CSVStorageManager:
 	def lookup_tile(self, zoom_level, x, y):
 		raise Exception("Not implemented")
 
-	def _get_storage_path(self, node):
-		return self.image_prefix + repr(node.image_id) + self.image_suffix
-
 	def store_image(self, node, img_bytes):
 		if(self.image_file == None):
 			return
-		img_fn = self._get_storage_path(node)
-		if(not os.path.exists(img_fn)):
-			#create the image
-			open(img_fn, 'w').write(img_bytes.getvalue())
-			#also output the information to the csv
-			self.image_file.write(','.join([repr(node.image_id), img_fn]))
-			self.image_file.write('\n')
+		if(node.is_blank):
+			#we've already stored the blank image
+			if(self.blank_img_id != None):
+				return
+			#we haven't stored the blank image yes
+			self.blank_img_id = node.image_id
+		elif(node.is_full):
+			#we've already stored the full image
+			if(self.full_img_id != None):
+				return
+			#we haven't stored the full image yes
+			self.full_img_id = node.image_id
 
+		self.image_file.write(','.join([str(node.image_id), tiletree.encode_img_bytes(img_bytes.getvalue())]))
+		self.image_file.write('\n')
 
 	def store(self, node, img_bytes):
 		csv_fields = []

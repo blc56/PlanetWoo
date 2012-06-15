@@ -46,6 +46,29 @@ img_bytes BYTEA
 """ % (self.image_table,))
 		self.conn.commit()
 
+	def copy(self, tree_file, image_file, with_header=True):
+		curs = self.conn.cursor()	
+		#read header lines
+		tree_file.readline()
+		image_file.readline()
+
+		#print """COPY %s FROM '%s' WITH CSV HEADER"""% (self.node_table, tree_file_path)
+
+		curs.copy_from(tree_file, self.node_table, ',', 'None')
+
+		#use insert statements for now, because I'm too lazy to figure out how to 
+		#copy from with bytea's
+		#curs.copy_from(image_file, self.image_table, ',', 'None')
+		values_generator = ( (l.split(',',1)[0], Binary(tiletree.decode_img_bytes(l.split(',',1)[1])) )
+				for l in image_file )
+		curs.executemany('INSERT INTO %s VALUES(%%s, %%s)' % self.image_table, values_generator)
+
+		#curs.copy_from(\
+#"""COPY %s FROM '%s' WITH CSV HEADER""" % (self.node_table, tree_file_path))
+		#curs.copy_expert(\
+#"""COPY %s FROM '%s' WITH CSV HEADER""" % (self.image_table, image_file_path))
+		self.conn.commit()
+
 	def fetch(self, zoom_level, x, y):
 		#first, try to find the tile at this zoom level
 		#if we don't then that means somewhere above us in the tree is a leaf node
@@ -56,18 +79,21 @@ img_bytes BYTEA
 		print zoom_level, x, y
 
 		for z in range(zoom_level, -1, -1):
-		#for z in [zoom_level]:
-
 			print z, x, y
 			node_id = tiletree.build_node_id(z, x, y)
 
 			curs.execute(\
 """
-SELECT img_bytes FROM %s nodes, %s images
+SELECT images.img_bytes, (nodes.is_leaf and (nodes.is_full or nodes.is_blank))
+FROM %s nodes, %s images
 WHERE nodes.node_id = %%s AND images.image_id = nodes.image_id
 """ % (self.node_table, self.image_table,), (node_id,) )
 			result = curs.fetchone()
 			if(result):
+				#if we end up pulling an image from a node at a higher
+				#zoom level, it should be a leaf node
+				if(z != zoom_level and result[1]):
+					raise Exception("Tile not found")
 				return StringIO.StringIO(result[0])
 
 			x = int(math.floor(x/2.0))
