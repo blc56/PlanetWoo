@@ -25,16 +25,21 @@ class SplitStorageManager:
 			max_x = min_x +  x_pixels_per_tile
 			max_y = min_y +  y_pixels_per_tile
 
-			child_images.append(big_image.crop((min_x, min_y, max_x, max_y)))
+			child_image = big_image.crop((min_x, min_y, max_x, max_y))
+			child_img_bytes = StringIO.StringIO()
+			child_image.save(child_img_bytes, 'png')
+			child_images.append(child_img_bytes)
 
 		#re-order things so the coordinates line up
 		return child_images
 
 	def store(self, node, img_bytes):
-		if(node.is_blank or node.is_full):
-			return self.backend.store(node, img_bytes)
-
-		child_images = self.split_img(img_bytes)
+		if((not node.is_blank) and (not node.is_full) ):
+			child_images = self.split_img(img_bytes)
+		else:
+			#if it is a blank or full image, just create
+			# copies of the orignal image since it will be the correct size
+			child_images = [img_bytes]*(4**self.num_splits)
 
 		child_nodes = [node]
 		for x in range(self.num_splits):
@@ -47,12 +52,10 @@ class SplitStorageManager:
 		child_nodes.sort(key=lambda x:(x.tile_x, x.tile_y))
 
 		for node, img in zip(child_nodes, child_images):
-			child_img_bytes = StringIO.StringIO()
-			img.save(child_img_bytes, 'png')
-			self.backend.store(node, child_img_bytes)
+			self.backend.store(node, img)
 
-	def lookup_tile(self, zoom_level, x, y):
-		self.backend.lookup_tile(self, zoom_level, x, y)
+	def fetch(self, zoom_level, x, y):
+		self.backend.fetch(self, zoom_level, x, y)
 
 	def close(self):
 		self.backend.close()

@@ -100,18 +100,26 @@ class QuadTreeGenNode:
 		tile_y3 = self.tile_y * 2 + 1
 		geom3 = cutter.cut(min_x3, min_y3, max_x3, max_y3, self.geom)
 
+		image_id = None
+		if(self.is_blank or self.is_full):
+			image_id = self.image_id
+
 		#do the tile coordinates slippy map style instead of TMS style
 		child0 = QuadTreeGenNode(None, min_x0, min_y0, max_x0, max_y0, this_zoom,
-				geom=geom0, tile_x=tile_x0, tile_y=tile_y2)
+				image_id=image_id, geom=geom0, tile_x=tile_x0, tile_y=tile_y2,
+				is_leaf=self.is_leaf, is_blank=self.is_blank, is_full=self.is_full)
 
 		child1 = QuadTreeGenNode(None, min_x1, min_y1, max_x1, max_y1, this_zoom,
-				geom=geom1, tile_x=tile_x1, tile_y=tile_y3)
+				image_id=image_id, geom=geom1, tile_x=tile_x1, tile_y=tile_y3,
+				is_leaf=self.is_leaf, is_blank=self.is_blank, is_full=self.is_full)
 
 		child2 = QuadTreeGenNode(None, min_x2, min_y2, max_x2, max_y2, this_zoom,
-				geom=geom2, tile_x=tile_x2, tile_y=tile_y0)
+				image_id=image_id, geom=geom2, tile_x=tile_x2, tile_y=tile_y0,
+				is_leaf=self.is_leaf, is_blank=self.is_blank, is_full=self.is_full)
 
 		child3 = QuadTreeGenNode(None, min_x3, min_y3, max_x3, max_y3, this_zoom,
-				geom=geom3, tile_x=tile_x3, tile_y=tile_y1)
+				image_id=image_id, geom=geom3, tile_x=tile_x3, tile_y=tile_y1,
+				is_leaf=self.is_leaf, is_blank=self.is_blank, is_full=self.is_full)
 
 		return (child0, child1, child2, child3)
 		

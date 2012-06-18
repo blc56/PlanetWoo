@@ -52,21 +52,40 @@ img_bytes BYTEA
 		tree_file.readline()
 		image_file.readline()
 
-		#print """COPY %s FROM '%s' WITH CSV HEADER"""% (self.node_table, tree_file_path)
-
 		curs.copy_from(tree_file, self.node_table, ',', 'None')
 
 		#use insert statements for now, because I'm too lazy to figure out how to 
-		#copy from with bytea's
+		#copy_from() with bytea's
 		#curs.copy_from(image_file, self.image_table, ',', 'None')
-		values_generator = ( (l.split(',',1)[0], Binary(tiletree.decode_img_bytes(l.split(',',1)[1])) )
-				for l in image_file )
-		curs.executemany('INSERT INTO %s VALUES(%%s, %%s)' % self.image_table, values_generator)
+		#values_generator = ( (l.split(',',1)[0], Binary(tiletree.decode_img_bytes(l.split(',',1)[1])) )
+				#for l in image_file )
+		#curs.executemany('INSERT INTO %s VALUES(%%s, %%s)' % self.image_table, values_generator)
+		#have we inserted a blank image yet?
+		curs.execute('SELECT count(*) from %s where image_id = -1' % self.image_table)
+		have_blank = bool(curs.fetchone()[0])
 
-		#curs.copy_from(\
-#"""COPY %s FROM '%s' WITH CSV HEADER""" % (self.node_table, tree_file_path))
-		#curs.copy_expert(\
-#"""COPY %s FROM '%s' WITH CSV HEADER""" % (self.image_table, image_file_path))
+		#have we inserted a full image yet?
+		curs.execute('SELECT count(*) from %s where image_id = -2' % self.image_table)
+		have_full = bool(curs.fetchone()[0])
+
+		for line in image_file:
+			image_id, image_bytes = line.split(',',1)
+			image_id = int(image_id)
+
+			if(image_id == -1):
+				if(have_blank):
+					continue
+				have_blank=True
+
+			elif(image_id == -2):
+				if(have_full):
+					continue
+				have_full=True
+
+			image_bytes = tiletree.decode_img_bytes(image_bytes)
+			curs.execute('INSERT INTO %s VALUES(%%s, %%s)' % (self.image_table,),
+				(image_id, Binary(image_bytes)) )
+
 		self.conn.commit()
 
 	def fetch(self, zoom_level, x, y):
@@ -92,7 +111,7 @@ WHERE nodes.node_id = %%s AND images.image_id = nodes.image_id
 			if(result):
 				#if we end up pulling an image from a node at a higher
 				#zoom level, it should be a leaf node
-				if(z != zoom_level and result[1]):
+				if(z != zoom_level and not result[1]):
 					raise Exception("Tile not found")
 				return StringIO.StringIO(result[0])
 
@@ -113,15 +132,6 @@ INSERT INTO %s VALUES(%%s, %%s)
 
 	def store_node(self, node):
 		curs = self.conn.cursor()
-
-		#if we are using a SplitStorageManager
-		#then we can find out a node is blank or full
-		#after we already stored id
-		if(node.is_blank or node.is_full):
-			curs.execute("DELETE FROM %s WHERE node_id = %%s"\
-					% (self.node_table,), (node.node_id,))
-			curs.execute("DELETE FROM %s WHERE image_id = %%s"\
-					% (self.image_table,), (node.node_id,))
 
 		curs.execute(\
 """

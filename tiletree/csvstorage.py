@@ -5,19 +5,20 @@ import shapely.wkt
 import psycopg2.extensions
 
 class CSVStorageManager:
-	def __init__(self, tree_file, image_file=None, image_prefix='images/', image_suffix='.png',
+	def __init__(self, tree_file, image_file=None,
 			fields=['node_id', 'zoom_level', 'tile_x', 'tile_y', 'image_id', 'is_leaf', 'is_blank',
 				'is_full'], img_w=256, img_h=256):
 		self.tree_file = tree_file
 		self.image_file = image_file
-		self.image_prefix = image_prefix
-		self.image_suffix = image_suffix
 		self.fields = fields
 		self.img_w = float(img_w)
 		self.img_h = float(img_h)
 		self.blank_img_id = None
 		self.full_img_id = None
 
+		self.open()
+
+	def open(self):
 		self.tree_file.write(','.join(self.fields))
 		self.tree_file.write('\n')
 
