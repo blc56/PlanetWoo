@@ -158,6 +158,9 @@ class NullStorageManager:
 	def __del__(self):
 		self.close()
 
+	def flush(self):
+		pass
+
 	def close(self):
 		pass
 
@@ -346,6 +349,7 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 		if(stats.get_nodes_rendered() % 100 == 0):
 			print stats
 
+	storage_manager.flush()
 	stats.stop_timer()
 	print stats
 
@@ -357,6 +361,7 @@ def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 			job.storage_manager, job.renderer, job.cutter,
 			job.start_level, job.start_tile_x,
 			job.start_tile_y, job.stop_level))
+		job.storage_manager.flush()
 
 	#line up
 	threads = []

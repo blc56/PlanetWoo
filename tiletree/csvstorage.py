@@ -26,6 +26,11 @@ class CSVStorageManager:
 			self.image_file.write(','.join(['image_id', 'image_fn']))
 			self.image_file.write('\n')
 
+	def flush(self):
+		self.tree_file.flush()
+		self.image_file.flush()
+
+
 	def lookup_tile(self, zoom_level, x, y):
 		raise Exception("Not implemented")
 
@@ -54,7 +59,7 @@ class CSVStorageManager:
 			if(f != 'geom'):
 				csv_fields.append(repr(getattr(node,f)))
 			else:
-				#simplify the geometry appropriatley for this bounding box and
+				#simplify the geometry appropriately for this bounding box and
 				#tile size before storing it
 				simplify_factor = min(abs(node.max_x - node.min_x)/self.img_w,
 						abs(node.max_y - node.min_y)/self.img_h)
@@ -68,7 +73,10 @@ class CSVStorageManager:
 		self.store_image(node, img_bytes)
 
 	def close(self):
-		self.tree_file.close()
+		if(self.tree_file):
+			self.tree_file.close()
+			self.tree_file = None
 		if(self.image_file):
 			self.image_file.close()
+			self.image_file = None
 
