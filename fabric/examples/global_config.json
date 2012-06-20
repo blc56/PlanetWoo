@@ -1,9 +1,8 @@
 {
-"data_files": ["../tests/unit/test_geo/united_states_merged.shp"],
 "mapfile_path": "../tests/unit/default.map",
 "shapefile_path": "../tests/unit/test_geo/united_states_merged.shp",
 "shapefile_layer": "united_states_merged",
-"data_file_dest": "/tmp",
+"data_file_dest": "/tmp/render_test/",
 "render_nodes": [
 	{
 		"address": "localhost",
@@ -13,7 +12,8 @@
 "map_extent": [-19951913.227845, 2017836.357364, 20021888.103161, 11554793.570993],
 "start_zoom": 0,
 "stop_zoom": 15,
-"output_prefix": "/tmp/united_states_merged_",
-"render_script": "render_to_csv.py"
-"mapserver_layers": ["poly_fill"]
+"output_prefix": "/tmp/render_test/united_states_merged_",
+"render_script": "render_to_csv.py",
+"mapserver_layers": ["poly_fill"],
+"render_script": "~/planetwoo/planetwoo/scripts/render_to_csv.py"
 }
