@@ -10,6 +10,7 @@ import json
 import time
 import shapely.speedups
 import multiprocessing
+import sys
 
 #if(shapely.speedups.available):
 	#shapely.speedups.enable()
@@ -134,10 +135,10 @@ class QuadTreeGenNode:
 		if(self.geom):
 			self.geom = shapely.wkt.loads(self.geom)
 
-	def to_generator_job(self, storage_manager, renderer, cutter, stop_level):
+	def to_generator_job(self, storage_manager, renderer, cutter, stop_level, log_file=sys.stdout):
 		return GeneratorJob(self.min_x, self.min_y, self.max_x, self.max_y,
 			self.zoom_level, self.tile_x, self.tile_y, stop_level,
-			storage_manager, renderer, cutter)
+			storage_manager, renderer, cutter, log_file)
 
 def quad_tree_gen_node_from_json(json_str):
 	node = QuadTreeGenNode()
@@ -288,7 +289,7 @@ class QuadTreeGenStats:
 class GeneratorJob:
 	def __init__(self, min_x, min_y, max_x, max_y, start_level,
 			start_tile_x, start_tile_y, stop_level, storage_manager,
-			renderer, cutter):
+			renderer, cutter, log_file=sys.stdout):
 		self.min_x = min_x
 		self.min_y = min_y
 		self.max_x = max_x
@@ -300,6 +301,7 @@ class GeneratorJob:
 		self.storage_manager = storage_manager
 		self.renderer=renderer
 		self.cutter = cutter
+		self.log_file = log_file
 
 def generate_node(node, cutter, storage_manager, renderer, stop_level, stats):
 
@@ -326,7 +328,7 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats):
 
 	return node.split(cutter)
 
-def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17):
+def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout):
 	stats = QuadTreeGenStats()
 	stats.reset_timer()
 
@@ -346,11 +348,16 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 		nodes_to_render.extend(children)
 
 		if(stats.get_nodes_rendered() % 100 == 0):
-			print stats
+			log_file.write(str(stats))
+			log_file.write('\n')
+			log_file.flush()
 
 	storage_manager.flush()
 	stats.stop_timer()
-	print stats
+	log_file.write(str(stats))
+	log_file.write('\n')
+	log_file.flush()
+	log_file.close()
 
 def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 	#build the arguments that are sent to worker processes
@@ -359,7 +366,7 @@ def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 		job_args.append((job.min_x, job.min_y, job.max_x, job.max_y,
 			job.storage_manager, job.renderer, job.cutter,
 			job.start_level, job.start_tile_x,
-			job.start_tile_y, job.stop_level))
+			job.start_tile_y, job.stop_level, job.log_file))
 		job.storage_manager.flush()
 
 	#line up

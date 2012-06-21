@@ -4,6 +4,7 @@ import shapely
 import shapely.wkt
 import shapely.geometry
 import time
+import mapscript
 
 class MapServerRenderer(Renderer):
 	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_prefix='images/'):
