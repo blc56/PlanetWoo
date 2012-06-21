@@ -33,7 +33,7 @@ def render_to_csv(mapfile_path, mapserver_layers, shapefile_path, shapefile_laye
 
 def main():
 	parser = argparse.ArgumentParser(description="Multithreaded Mapserver Shapfile CSV Tile Renderer")
-	parser.add_argument('-c' '--config', dest='config', required=True, help='Path to configuration json file')
+	parser.add_argument('-c', '--config', dest='config', required=True, help='Path to configuration json file')
 	args = parser.parse_args()
 
 	config = json.loads(open(args.config, 'r').read())

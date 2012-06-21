@@ -1,4 +1,4 @@
-##\file __init__.py Main classes for the tiletree module. 
+##\file dist_render.py Fabric script for distributed rendering
 from fabric.api import serial, parallel, task, local, settings, abort, run, cd, env, get, put, execute
 import json
 import sys
@@ -77,7 +77,8 @@ def copy_data_files(global_config, render_node_config):
 	#copy over mapfile, shapefile, and render config files
 	run('mkdir -p %s' % global_config['data_file_dest'])
 	put(global_config['mapfile_path'], global_config['data_file_dest'])
-	put(global_config['shapefile_path'], global_config['data_file_dest'])
+	shapefile_root = os.path.splitext(global_config['shapefile_path'])[0]
+	put(shapefile_root + '.*', global_config['data_file_dest'])
 
 	tmp_config_bytes = StringIO.StringIO()
 	tmp_config_bytes.write(json.dumps(render_node_config))

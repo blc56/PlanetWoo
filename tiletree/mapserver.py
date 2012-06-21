@@ -3,7 +3,6 @@ from tiletree import *
 import shapely
 import shapely.wkt
 import shapely.geometry
-from psycopg2 import *
 import time
 
 class MapServerRenderer(Renderer):

@@ -2,7 +2,6 @@
 import tiletree
 import os
 import shapely.wkt
-import psycopg2.extensions
 
 class CSVStorageManager:
 	def __init__(self, tree_file, image_file=None,

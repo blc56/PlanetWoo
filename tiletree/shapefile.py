@@ -32,7 +32,6 @@ class ShapefileCutter:
 		return self.geom.bounds
 
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
-		print "CUT"
 		#build a geometry from the bounds
 		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
 			{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
