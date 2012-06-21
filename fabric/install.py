@@ -101,6 +101,11 @@ export LD_LIBRARY_PATH
 @task
 #for ubuntu 12.04 machines
 def install_deps(prefix="/opt/planetwoo/"):
+	#fix zlib library link so that PIL will come with zlib (and thus png) suport
+	sudo('rm -f /usr/lib/libgd.so')
+	sudo('ln -s /usr/lib/x86_64-linux-gnu/libz.so /usr/lib/')
+
+
 	#stuff from packages
 	sudo('apt-get update')
 	sudo('apt-get -y upgrade')
@@ -122,7 +127,7 @@ def install_deps(prefix="/opt/planetwoo/"):
 	sudo('apt-get -y install git')
 	sudo('apt-get -y install screen dtach')
 	sudo('pip install shapely')
-	sudo('pip install PIL')
+	sudo('pip install -U PIL')
 	sudo('pip install psycopg2')
 
 	sudo('mkdir -p %s' % os.path.join(prefix,'src'))
