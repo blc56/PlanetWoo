@@ -3,7 +3,6 @@ import Image
 import ImagePalette
 import ImageDraw
 import StringIO
-import mapscript
 import copy
 import shapely
 import shapely.wkt

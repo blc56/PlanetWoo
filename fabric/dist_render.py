@@ -1,5 +1,5 @@
 ##\file dist_render.py Fabric script for distributed rendering
-from fabric.api import serial, parallel, task, local, settings, abort, run, cd, env, get, put, execute
+from fabric.api import serial, parallel, task, local, settings, abort, run, cd, env, get, put, execute, sudo
 import json
 import sys
 sys.path.append('../')
@@ -73,6 +73,11 @@ def create_machine_jobs(global_config):
 	return render_node_configs
 
 @parallel
+def update_planetwoo(prefix="/opt/planetwoo"):
+	with cd('%s/PlanetWoo/' % prefix):
+		sudo('git pull')
+
+@parallel
 def copy_data_files(global_config, render_node_config):
 	#copy over mapfile, shapefile, and render config files
 	run('mkdir -p %s' % global_config['data_file_dest'])
@@ -94,11 +99,12 @@ def copy_data_files(global_config, render_node_config):
 
 @parallel
 def run_render_node(global_config, render_node_configs):
+	update_planetwoo()
+
 	render_node_config = render_node_configs[env.host]
 	remote_config_path = copy_data_files(global_config, render_node_config)
 
-	#run('screen -S tiletree %s -c %s' % (global_config['render_script'], remote_config_path))
-	run('%s -c %s' % (global_config['render_script'], remote_config_path))
+	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (global_config['render_script'], remote_config_path))
 
 
 @task

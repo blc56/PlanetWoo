@@ -90,9 +90,9 @@ def install_user_env(prefix="/opt/planetwoo/"):
 echo '
 PYTHONPATH="%(prefix)s/lib/python2.7/site-packages/:%(prefix)s/PlanetWoo/:${PYTHONPATH}"
 LD_LIBRARY_PATH="%(prefix)s/lib/:${LD_LIBRARY_PATH}"
-' > %(prefix)s/user_env.sh
 export PYTHONPATH
 export LD_LIBRARY_PATH
+' > %(prefix)s/user_env.sh
 """ % {'prefix': prefix}
 
 	#put(env_sh, os.path.join(prefix, 'user_env.sh'))
@@ -120,6 +120,7 @@ def install_deps(prefix="/opt/planetwoo/"):
 	sudo('apt-get -y install s3cmd')
 	sudo('apt-get -y install libpq-dev')
 	sudo('apt-get -y install git')
+	sudo('apt-get -y install screen dtach')
 	sudo('pip install shapely')
 	sudo('pip install PIL')
 	sudo('pip install psycopg2')
