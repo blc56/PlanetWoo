@@ -2,6 +2,7 @@
 import sys
 import tornado.ioloop
 import tornado.web
+import argparse
 
 sys.path.append('../')
 import tiletree
@@ -22,13 +23,22 @@ class TileFetcher(tornado.web.RequestHandler):
 		self.write(img_file.read())
 
 def main():
-	port = 8080
+	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")
+	parser.add_argument('-p', '--port', dest='port', required=True, action='store',)
+	parser.add_argument('-t', '--tree-table', dest='tree_table', required=True, action='store',)
+	parser.add_argument('-i', '--images-table', dest='images_table', required=True, action='store',)
+	parser.add_argument('-u', '--url-prefix', dest='url_prefix', required=False, action='store',
+		default='/slippy_map/')
+	args = parser.parse_args()
+
+	port = int(args.port)
+
 	storage_manager =\
 		tiletree.postgres.PostgresStorageManager(\
-		'dbname=planetwoo user=guidek12','tile_csv_nodes','tile_csv_images')
+		'dbname=planetwoo user=guidek12',args.tree_table,args.images_table)
 
 	app = tornado.web.Application([
-		(r"/slippy_map/([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png", TileFetcher,
+		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, TileFetcher,
 			{'storage_manager':storage_manager}),
 	])
 
