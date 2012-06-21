@@ -7,30 +7,32 @@ import shapely.geometry.collection
 import shapely.ops
 from osgeo import ogr
 from osgeo import osr
+import copy
 
 class ShapefileCutter:
-	def __init__(self, shapefile_path, layer_name):
+	def __init__(self, shapefile_path, layer_name, geom_type='polygon'):
 		ogr_driver = ogr.GetDriverByName('ESRI Shapefile')
 		ogr_ds = ogr_driver.Open(shapefile_path)
 		ogr_layer = ogr_ds.GetLayerByName(layer_name)
 
-		shapes = []
+		collection = ogr.CreateGeometryFromWkt("GEOMETRYCOLLECTION EMPTY")
 		f = ogr_layer.GetNextFeature()
 		while(f):
 			geom_ref = f.GetGeometryRef()
 			if(geom_ref):
-				this_wkt = geom_ref.ExportToWkt()
-			else:
-				this_wkt = "GEOMETRYCOLLECTION EMPTY"
-			shapes.append(shapely.wkt.loads(this_wkt))
+				collection.AddGeometry(geom_ref)
 			f = ogr_layer.GetNextFeature()
 
-		self.geom = shapely.ops.cascaded_union(shapes)
+		self.geom = shapely.wkt.loads(collection.ExportToWkt())
+
+	def clone(self):
+		return copy.deepcopy(self)
 
 	def bbox(self):
 		return self.geom.bounds
 
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
+		print "CUT"
 		#build a geometry from the bounds
 		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
 			{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})

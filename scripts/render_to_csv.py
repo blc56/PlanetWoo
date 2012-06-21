@@ -12,6 +12,7 @@ import json
 def render_to_csv(mapfile_path, mapserver_layers, shapefile_path, shapefile_layer, output_prefix, num_threads, jobs):
 	generate_jobs = []
 	count = 0
+	cutter = tiletree.shapefile.ShapefileCutter(shapefile_path, str(shapefile_layer))
 	for job in jobs:
 		tree_file_path = output_prefix + 'tree_%d.csv' % count
 		image_file_path = output_prefix + 'images_%d.csv' % count
@@ -20,8 +21,9 @@ def render_to_csv(mapfile_path, mapserver_layers, shapefile_path, shapefile_laye
 			max_x=job['extent'][2], max_y=job['extent'][3], zoom_level=job['start_zoom'])
 		generate_jobs.append(start_node.to_generator_job(
 			tiletree.csvstorage.CSVStorageManager(open(tree_file_path, 'w'), open(image_file_path, 'w')),
-			tiletree.mapserver.MapServerRenderer(open(mapfile_path,'r').read(), mapserver_layers, img_w=256, img_h=256),
-			tiletree.shapefile.ShapefileCutter(shapefile_path, str(shapefile_layer)),
+			tiletree.mapserver.MapServerRenderer(open(mapfile_path,'r').read(), mapserver_layers,
+				img_w=256, img_h=256),
+			cutter.clone(),
 			job['stop_zoom'])
 		)
 
