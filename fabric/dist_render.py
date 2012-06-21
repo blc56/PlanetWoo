@@ -53,7 +53,7 @@ def create_machine_jobs(global_config):
 		}
 		for job in jobs[0:this_num_jobs]:
 			this_config['jobs'].append({
-				'extent': [job.min_x, job.max_x, job.min_y, job.max_y],
+				'extent': [job.min_x, job.min_y, job.max_x, job.max_y],
 				'start_zoom': job.zoom_level,
 				'stop_zoom': global_config['stop_zoom'],
 			})
