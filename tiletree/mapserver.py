@@ -33,6 +33,21 @@ class MapServerRenderer(Renderer):
 
 		return result
 
+	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
+		if(is_blank):
+			if(self.blank_img_bytes == None):
+				self.blank_img_bytes = self.render_normal(geometry, is_blank, 
+					is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level,
+					tile_x, tile_y)[1]
+			return (self.blank_img_id, self.blank_img_bytes)
+		elif(is_full):
+			if(self.full_img_bytes == None):
+				self.full_img_bytes = self.render_normal(geometry, is_blank, 
+					is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level,
+					tile_x, tile_y)[1]
+			return (self.full_img_id, self.full_img_bytes)
+		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y)
+
 	def build_request(self, min_x, min_y, max_x, max_y):
 		wms_req = mapscript.OWSRequest()
 		wms_req.setParameter('MODE', 'WMS')
