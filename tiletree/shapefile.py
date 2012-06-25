@@ -5,12 +5,13 @@ import shapely.wkt
 import shapely.geometry
 import shapely.geometry.collection
 import shapely.ops
+import maptree
 from osgeo import ogr
 from osgeo import osr
 import copy
 
 class ShapefileCutter:
-	def __init__(self, shapefile_path, layer_name, geom_type='polygon'):
+	def __init__(self, shapefile_path, layer_name):
 		ogr_driver = ogr.GetDriverByName('ESRI Shapefile')
 		ogr_ds = ogr_driver.Open(shapefile_path)
 		ogr_layer = ogr_ds.GetLayerByName(layer_name)
@@ -40,6 +41,37 @@ class ShapefileCutter:
 		if(not parent_geom):
 			geom = self.geom
 
+		return bbox.intersection(geom)
+
+class MaptreeCutter:
+	def __init__(self, shapefile_path, layer_name, qix_path):
+		self.shp_tree = maptree.SHPTree(qix_path)
+		self.ogr_driver = ogr.GetDriverByName('ESRI Shapefile')
+		self.ogr_ds = self.ogr_driver.Open(shapefile_path)
+		self.layer = self.ogr_ds.GetLayerByName(layer_name)
+
+	def clone(self):
+		return copy.deepcopy(self)
+
+	def bbox(self):
+		raise Exception("Not Implemented")
+
+	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
+		fids = self.shp_tree.find_shapes(min_x, min_y, max_x, max_y)
+
+		collection = ogr.CreateGeometryFromWkt("GEOMETRYCOLLECTION EMPTY")
+		for fid in fids:
+			f = self.layer.GetFeature(int(fid))
+			geom_ref = f.GetGeometryRef()
+			if(geom_ref):
+				collection.AddGeometry(geom_ref)
+
+		geom = shapely.wkt.loads(collection.ExportToWkt())
+
+		#build a geometry from the bounds
+		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
+			{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
+		#return geom
 		return bbox.intersection(geom)
 
 class ShapefileStorageManager:

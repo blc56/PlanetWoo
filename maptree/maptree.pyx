@@ -19,6 +19,7 @@ cdef extern from "mapserver.h":
 		double maxy
 
 	cdef int msGetBit(ms_bitarray array, int index)
+	#NOTE: I'd prefer these functions, but they seem to be broken
 	#cdef treeObj* msReadTree(char *filename, int debug)
 	#cdef ms_bitarray msSearchTree(treeObj* tree, rectObj aio)
 
@@ -27,13 +28,8 @@ cdef extern from "mapserver.h":
 
 #cdef class SHPTree:
 class SHPTree:
-	#cdef treeObj* tree
-	#cdef SHPTreeInfo *tree
-
 
 	def __init__(self, qix_file_path):
-		#self.tree = msReadTree(qix_file_path, 0)
-		#tree = msSHPDiskTreeOpen(file_path, 0)
 		self.tree_path = qix_file_path
 		cdef SHPTreeInfo* tree_handle = msSHPDiskTreeOpen(self.tree_path, 0)
 		self.num_shapes = dref(tree_handle).nShapes
