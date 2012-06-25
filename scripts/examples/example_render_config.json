@@ -7,6 +7,9 @@
 	{"start_zoom": 1, "extent": [-7081604, 739778.0, -1106604.0, 5133528], "stop_zoom": 5},
 	{"start_zoom": 0, "extent": [-7081604, -3653972, 4868396, 5133528], "stop_zoom": 0}
 ],
+"cutter_type": "postgres",
+"connect_string": "dbname=planetwoo user=guidek12",
+"table_name": "north_america",
 "shapefile_layer": "north_america",
 "output_prefix": "./test_render_",
 "mapfile_path": "examples/default.map",

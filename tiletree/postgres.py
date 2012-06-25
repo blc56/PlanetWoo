@@ -4,6 +4,7 @@ from psycopg2 import *
 import os.path
 import math
 import StringIO
+import shapely.wkb
 
 class PostgresStorageManager:
 	def __init__(self, connect_str, node_table, image_table):
@@ -150,4 +151,37 @@ INSERT INTO %s VALUES(%%(node_id)s, %%(zoom_level)s, %%(tile_x)s,
 	def close(self):
 		#self.conn.commit()
 		pass
+
+class PostgresCutter:
+	def __init__(self, conn_str, table_name, geo_col="wkb_geometry", input_srid='900914'):
+		self.conn_str = conn_str
+		self.conn = connect(self.conn_str)
+		self.curs = self.conn.cursor()
+		self.table_name = table_name
+		self.geo_col = geo_col
+		self.input_srid = input_srid
+
+	def bbox(self):
+		raise Exception("Not implemented")
+
+	def clone(self):
+		return PostgresCutter(self.conn_str, self.table_name, self.geo_col, self.input_srid)
+
+	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
+
+		self.curs.execute(\
+"""
+SELECT ST_AsBinary(ST_Collect(%(geo_col)s))
+FROM %(table)s WHERE ST_Intersects( %(geo_col)s, ST_GeomFromText(
+'POLYGON( ( %%(min_x)s %%(min_y)s, %%(max_x)s %%(min_y)s, %%(max_x)s %%(max_y)s,
+%%(min_x)s %%(max_y)s, %%(min_x)s %%(min_y)s ) )',
+%%(srid)s) ) """ % {'table': self.table_name, 'geo_col':self.geo_col}, {'min_x':min_x, 'min_y':min_y,
+	'max_x':max_y, 'max_y':max_y, 'srid':self.input_srid})
+
+		wkb = self.curs.fetchone()[0]
+		if(wkb == None):
+			return wkb
+
+		result = shapely.wkb.loads(str(wkb))
+		return result
 

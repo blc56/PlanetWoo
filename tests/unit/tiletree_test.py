@@ -52,14 +52,30 @@ def shapefile_cutter_test():
 	geom = cutter.cut(-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
 	#print geom.area, geom.bounds
 
+def maptree_cutter_test():
+	print "Maptree cutter test"
+	cutter = tiletree.shapefile.MaptreeCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america', 'test_geo/webmerc_northamerica/north_america.qix')
+	geom = cutter.cut(-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
+	print geom.area, geom.bounds
+
+def postgres_cutter_test():
+	print "Postgres cutter test"
+	cutter = tiletree.postgres.PostgressCutter('dbname=planetwoo user=guidek12', 'north_america')
+	#print cutter.geom.area, cutter.geom.bounds
+	geom = cutter.cut(-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
+	#print geom.area, geom.bounds
+
 def mapserver_render_test():
 	print "Mapserver render test"
 	#storage_manager = tiletree.fsstorage.FSStorageManager()
 	storage_manager = tiletree.csvstorage.CSVStorageManager(open('mapserver_tree.csv','w'), open('mapserver_images.csv', 'w'))
-	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
+	shape_cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
+	cutter = tiletree.shapefile.MaptreeCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america', 'test_geo/webmerc_northamerica/north_america.qix')
+	#cutter=shape_cutter
+	#cutter = tiletree.postgres.PostgresCutter('dbname=planetwoo user=guidek12', 'north_america')
 	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
-	min_x, min_y, max_x, max_y = cutter.bbox()
-	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=2)
+	min_x, min_y, max_x, max_y = shape_cutter.bbox()
+	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=5)
 
 def pil_render_test():
 	print "PIL render test"
@@ -207,14 +223,16 @@ def main():
 	#null_fs_tree_test()
 	#null_csv_tree_test()
 	#shapefile_cutter_test()
-	#mapserver_render_test()
+	#maptree_cutter_test()
+	#postgres_cutter_test()
+	mapserver_render_test()
 	#pil_render_test()
 	#postgres_test()
 	#geom_builder_csv_test()
 	#geom_builder_shapefile_test()
 	#individual_geom_builder_shapefile_test()
 	#meta_tile_mapserver_test()
-	mapserver_mt_test()
+	#mapserver_mt_test()
 	#meta_mapserver_mt_test()
 	#postgres_csv_load_test()
 	pass

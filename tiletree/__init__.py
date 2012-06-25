@@ -347,7 +347,8 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats)
 		nodes_to_render.extend(children)
 
-		if(stats.get_nodes_rendered() % 100 == 0):
+		#if(stats.get_nodes_rendered() % 100 == 0):
+		if(True):
 			log_file.write(str(stats))
 			log_file.write('\n')
 			log_file.flush()
