@@ -80,8 +80,47 @@ def launch_server(ssh_key, ami='ami-82fa58eb', size='m1.small', security_group='
 	execute(install_deps, hosts=env.hosts)
 	execute(install_user_env, hosts=env.hosts)
 	execute(install_planetwoo, hosts=env.hosts)
+	execute(install_postgres, hosts=env.hosts)
+	execute(setup_planetwoo_db_template, hosts=env.hosts)
+	execute(setup_planetwoo_db, hosts=env.hosts)
 
 	print "\n* Created Server: %s" % instance.public_dns_name
+	
+@task
+def setup_planetwoo_db_template():
+	#create a excensus_template
+	sudo('createdb planetwoo_template', user='postgres')
+
+	#postgis
+	sudo('psql -d planetwoo_template -f /usr/share/postgresql/9.1/contrib/postgis-1.5/postgis.sql', user='postgres')
+	sudo('psql -d planetwoo_template -f /usr/share/postgresql/9.1/contrib/postgis-1.5/spatial_ref_sys.sql', user='postgres')
+
+	#create planetwoo user
+	sudo('psql -c "create role planetwoo with login"', user='postgres')
+
+@task
+def setup_planetwoo_db():
+	sudo('psql -c "create database planetwoo with owner planetwoo template planetwoo_template"', user='postgres')
+
+@task
+def install_postgres(data_path='/mnt/planetwoo/pgdata/'):
+	sudo('apt-get -y install libgeos-dev libproj-dev postgresql postgis libpq-dev postgresql-server-dev-9.1 postgresql-9.1-postgis postgresql-contrib-9.1')
+
+	#configure postgres
+	sudo('service postgresql stop || pkill -9 postgres || :')
+	sudo('rm -rf %s || :' % data_path)
+	sudo('mkdir -p %s' % data_path)
+	sudo('chown -R %(user)s:%(user)s %(data_path)s ' % {'user':'postgres', 'data_path':data_path})
+	put('resources/postgresql.conf', '/tmp/postgresql.conf')
+	put('resources/pg_hba.conf', '/tmp/pg_hba.conf')
+	sudo('mv /tmp/postgresql.conf /etc/postgresql/9.1/main/')
+	sudo('su - postgres -c "/usr/lib/postgresql/9.1/bin/initdb -D %s"' % data_path)
+	sudo('su - postgres -c "ln -s /etc/ssl/certs/ssl-cert-snakeoil.pem %s/server.crt"' % data_path)
+	sudo('su - postgres -c "ln -s /etc/ssl/private/ssl-cert-snakeoil.key %s/server.key"' % data_path)
+	sudo('mv /tmp/pg_hba.conf %s' % data_path)
+	sudo('chown postgres:postgres %s/pg_hba.conf' % data_path)
+	sudo('chmod 400 %s/pg_hba.conf' % data_path)
+	sudo('service postgresql start')
 
 @task
 def install_user_env(prefix="/opt/planetwoo/"):
