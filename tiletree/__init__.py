@@ -236,12 +236,17 @@ class Renderer(NullRenderer):
 		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y)
 
 class QuadTreeGenStats:
-	def __init__(self):
+	def __init__(self, start_zoom, stop_zoom):
 		self.nodes_rendered = 0
 		self.blanks_rendered = 0
 		self.fulls_rendered = 0
 		self.start_time = time.time()
 		self.stop_time = self.start_time
+		self.start_zoom = start_zoom
+		self.stop_zoom = stop_zoom
+		self.virtual_nodes = 0
+		self.virtual_percent_complete = 0
+		self.virtual_total_nodes = float((4*(4**(stop_zoom - start_zoom)) -1)/3.0)
 
 	def stop_timer(self):
 		self.stop_time = time.time()
@@ -250,40 +255,58 @@ class QuadTreeGenStats:
 		self.start_time = time.time()
 		self.stop_time = None
 
-	def track(self, is_blank, is_full):
-		if(is_blank):
+	def track(self, node):
+		if(node.is_blank):
 			self.blanks_rendered += 1
-		elif(is_full):
+		elif(node.is_full):
 			self.fulls_rendered += 1
 		self.nodes_rendered += 1
 
-	def __repr__(self):
-		if(self.stop_time != None):
-			return 'time: %f, nps: %f, cnps: %f, nodes: %d, blanks: %d, fulls: %d' %\
-				(self.stop_time - self.start_time, self.nodes_per_sec(), self.content_nodes_per_sec(),
-					self.nodes_rendered, self.blanks_rendered, self.fulls_rendered)
+		#if this is a leaf node calculate how much of the tree has been completed
+		#A leaf node means that itself, and its entire sub tree have been completed
+		if(node.is_leaf):
+			#the number of nodes in this node's subtree (including itself)
+			num_finished = (4*(4**(self.stop_zoom - node.zoom_level)) -1)/3.0
+			self.virtual_nodes += num_finished
 		else:
-			return 'time: %f, nps: %f, cnps: %f, nodes: %d, blanks: %d, fulls: %d' %\
-				(time.time() - self.start_time, self.nodes_per_sec(), self.content_nodes_per_sec(),
-					self.nodes_rendered, self.blanks_rendered, self.fulls_rendered)
+			self.virtual_nodes += 1
+
+		self.virtual_percent_complete = self.virtual_nodes / self.virtual_total_nodes
+
+	def __repr__(self):
+		return 'time: %f, est: %f, progress:%f, nps: %f, cnps: %f, nodes: %d, blanks: %d, fulls: %d, savings: %f' %\
+			(self.time(), self.time_est(), self.virtual_percent_complete,
+				self.nodes_per_sec(), self.content_nodes_per_sec(),
+				self.nodes_rendered, self.blanks_rendered, self.fulls_rendered, self.savings())
 
 	def get_nodes_rendered(self):
 		return self.nodes_rendered
 
+	def savings(self):
+		if(self.virtual_nodes > 0):
+			return 1 - (self.nodes_rendered / float(self.virtual_nodes))
+
 	def content_nodes_per_sec(self):
-		if(self.stop_time != None and (self.stop_time - self.start_time) != 0):
-			return (self.nodes_rendered - (self.blanks_rendered + self.fulls_rendered)) /\
-				(self.stop_time - self.start_time) 
-		if(self.stop_time == None and (time.time() - self.start_time != 0)):
-			return (self.nodes_rendered - (self.blanks_rendered + self.fulls_rendered)) /\
-				(time.time() - self.start_time) 
+		time = self.time()
+		if(time > 0):
+			return (self.nodes_rendered - (self.blanks_rendered + self.fulls_rendered)) / time
+		return float('nan')
+
+	def time(self):
+		if(self.stop_time != None):
+			return (self.stop_time - self.start_time) 
+		return (time.time() - self.start_time) 
+
+	def time_est(self):
+		time = self.time()
+		if(time > 0):
+			return  (self.virtual_total_nodes - self.virtual_nodes) / (self.virtual_nodes / time)
 		return float('nan')
 
 	def nodes_per_sec(self):
-		if(self.stop_time != None and (self.stop_time - self.start_time) != 0):
-			return self.nodes_rendered / (self.stop_time - self.start_time) 
-		if(self.stop_time == None and (time.time() - self.start_time != 0)):
-			return self.nodes_rendered / (time.time() - self.start_time) 
+		time = self.time()
+		if(time > 0):
+			return self.nodes_rendered / time
 		return float('nan')
 
 class GeneratorJob:
@@ -318,7 +341,7 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats):
 			node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level,
 			node.tile_x, node.tile_y)
 
-	stats.track(node.is_blank, node.is_full)
+	stats.track(node)
 	
 	storage_manager.store(node, this_img_bytes)
 
@@ -329,7 +352,7 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats):
 	return node.split(cutter)
 
 def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout):
-	stats = QuadTreeGenStats()
+	stats = QuadTreeGenStats(start_level, stop_level)
 	stats.reset_timer()
 
 	#create the initial QuadTreeGenNode
@@ -348,9 +371,9 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats)
 		nodes_to_render.extend(children)
 
-		#output stats ~ every 10 seconds
+		#output stats every so often
 		now = time.time()
-		if(now - last_stat_output > 10):
+		if(now - last_stat_output > 5):
 			log_file.write(str(stats))
 			log_file.write('\n')
 			log_file.flush()

@@ -70,12 +70,12 @@ def mapserver_render_test():
 	#storage_manager = tiletree.fsstorage.FSStorageManager()
 	storage_manager = tiletree.csvstorage.CSVStorageManager(open('mapserver_tree.csv','w'), open('mapserver_images.csv', 'w'))
 	shape_cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	cutter = tiletree.shapefile.MaptreeCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america', 'test_geo/webmerc_northamerica/north_america.qix')
-	#cutter=shape_cutter
+	#cutter = tiletree.shapefile.MaptreeCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america', 'test_geo/webmerc_northamerica/north_america.qix')
+	cutter=shape_cutter
 	#cutter = tiletree.postgres.PostgresCutter('dbname=planetwoo user=guidek12', 'north_america')
 	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
 	min_x, min_y, max_x, max_y = shape_cutter.bbox()
-	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=5)
+	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=7)
 
 def pil_render_test():
 	print "PIL render test"
