@@ -339,6 +339,7 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 	root_node.geom = root_geom
 
 	nodes_to_render = [root_node]
+	last_stat_output = time.time()
 
 	while(len(nodes_to_render) > 0):
 		this_node = nodes_to_render.pop()
@@ -347,11 +348,13 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats)
 		nodes_to_render.extend(children)
 
-		#if(stats.get_nodes_rendered() % 100 == 0):
-		if(True):
+		#output stats ~ every 10 seconds
+		now = time.time()
+		if(now - last_stat_output > 10):
 			log_file.write(str(stats))
 			log_file.write('\n')
 			log_file.flush()
+			last_stat_output = now
 
 	storage_manager.flush()
 	stats.stop_timer()
