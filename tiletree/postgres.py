@@ -153,7 +153,7 @@ INSERT INTO %s VALUES(%%(node_id)s, %%(zoom_level)s, %%(tile_x)s,
 		pass
 
 class PostgresCutter:
-	def __init__(self, conn_str, table_name, geo_col="wkb_geometry", input_srid='-1', memory_cutoff=2**14):
+	def __init__(self, conn_str, table_name, geo_col="wkb_geometry", input_srid='-1'):
 		self.conn_str = conn_str
 		self.conn = connect(self.conn_str)
 		self.curs = self.conn.cursor()
@@ -170,9 +170,6 @@ class PostgresCutter:
 
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
 		if(parent_geom == None):
-			return self.db_cut(min_x, min_y, max_x, max_y)
-
-		if(hasattr(parent_geom, 'geoms') and len(parent_geom.geoms) > self.memory_cutoff):
 			return self.db_cut(min_x, min_y, max_x, max_y)
 
 		#build a geometry from the bounds
