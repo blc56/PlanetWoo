@@ -153,7 +153,7 @@ INSERT INTO %s VALUES(%%(node_id)s, %%(zoom_level)s, %%(tile_x)s,
 		pass
 
 class PostgresCutter:
-	def __init__(self, conn_str, table_name, geo_col="wkb_geometry", input_srid='-1', memory_cutoff=1024):
+	def __init__(self, conn_str, table_name, geo_col="wkb_geometry", input_srid='-1', memory_cutoff=2**14):
 		self.conn_str = conn_str
 		self.conn = connect(self.conn_str)
 		self.curs = self.conn.cursor()

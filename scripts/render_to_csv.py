@@ -15,6 +15,8 @@ def load_cutter(config):
 	cutter_type = config['cutter_type']
 	if(cutter_type == 'shapefile'):
 		return load_shapefile_cutter(config['shapefile_path'], config['shapefile_layer'])
+	elif(cutter_type == 'maptree'):
+		return load_maptree_cutter(config['shapefile_path'], config['shapefile_layer'])
 	elif(cutter_type == 'postgres'):
 		return load_postgres_cutter(config['connect_string'], config['table_name'])
 
@@ -22,25 +24,19 @@ def load_postgres_cutter(connect_str, table_name):
 	return tiletree.postgres.PostgresCutter(connect_str, table_name)
 
 def load_shapefile_cutter(shapefile_path, shapefile_layer):
-	qix_path = check_for_qix(shapefile_path)
-	if(qix_path == None):
-		return  tiletree.shapefile.ShapefileCutter(shapefile_path, str(shapefile_layer))
-	return tiletree.shapefile.MaptreeCutter(shapefile_path, str(shapefile_layer), qix_path)
+	return  tiletree.shapefile.ShapefileCutter(shapefile_path, str(shapefile_layer))
 
-def check_for_qix(shapefile_path):
-	return None
+def load_maptree_cutter(shapefile_path, shapefile_layer):
 	shapefile_root = os.path.basename(shapefile_path)
 	qix_path = shapefile_root + '.qix'
-	if(os.path.isfile(qix_path)):
-		return qix_path
-	return None
+	return tiletree.shapefile.MaptreeCutter(shapefile_path, str(shapefile_layer), qix_path)
 
 def load_shapefile(config):
 	if(not config['load_shapefile_to_postgres']):
 		return
 	else:
 		subprocess.call(\
-				'%(prefix)sogr2ogr -f "PostgreSQL" "PG: %(conn_str)s" %(shp_path)s -nlt GEOMETRY %(shp_layer)s' %\
+				'%(prefix)sogr2ogr -f "PostgreSQL" "PG: %(conn_str)s" %(shp_path)s -nlt GEOMETRY %(shp_layer)s -overwrite' %\
 			{'conn_str':config['connect_string'], 'shp_path':config['shapefile_path'],
 			'shp_layer': config['shapefile_layer'], 'prefix':config['ogr_prefix']}, shell=True)
 

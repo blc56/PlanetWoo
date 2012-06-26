@@ -14,5 +14,6 @@
 "address": "localhost",
 "shapefile_path": "../tests/unit/test_geo/webmerc_northamerica/north_america.shp",
 "mapserver_layers": ["poly_fill"],
+"load_shapefile_to_postgres":false
 }
 
