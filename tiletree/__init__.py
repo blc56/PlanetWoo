@@ -384,7 +384,6 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 	log_file.write(str(stats))
 	log_file.write('\n')
 	log_file.flush()
-	log_file.close()
 
 def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 	#build the arguments that are sent to worker processes

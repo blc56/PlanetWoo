@@ -33,6 +33,9 @@ class SplitStorageManager:
 		#re-order things so the coordinates line up
 		return child_images
 
+	def flush(self):
+		self.backend.flush()
+
 	def store(self, node, img_bytes):
 		if((not node.is_blank) and (not node.is_full) ):
 			child_images = self.split_img(img_bytes)

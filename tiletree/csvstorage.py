@@ -26,8 +26,10 @@ class CSVStorageManager:
 			self.image_file.write('\n')
 
 	def flush(self):
-		self.tree_file.flush()
-		self.image_file.flush()
+		if(self.tree_file):
+			self.tree_file.flush()
+		if(self.image_file):
+			self.image_file.flush()
 
 
 	def lookup_tile(self, zoom_level, x, y):

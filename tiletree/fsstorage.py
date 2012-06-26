@@ -21,6 +21,9 @@ class FSStorageManager:
 		path = self.get_slippy_path(zoom_level, x, y)[1]
 		return open(path, 'r')
 
+	def flush(self):
+		pass
+
 	def store(self, node, img_bytes):
 		img_fn = self._get_storage_path(node)
 		if(not os.path.exists(img_fn)):

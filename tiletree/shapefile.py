@@ -99,6 +99,9 @@ class ShapefileStorageManager:
 			f_type = ogr_field_types.get(field_types.get(f, 'int'))
 			field_dfn = ogr.FieldDefn(str(f), f_type)
 			self.out_layer.CreateField(field_dfn)
+
+	def flush(self):
+		pass
 	
 	def store(self, node, img_bytes):
 		new_feature = ogr.Feature(self.out_layer.GetLayerDefn())
@@ -147,6 +150,9 @@ class IndividualShapefileStorageManager:
 			f_type = ogr_field_types.get(field_types.get(f, 'int'))
 			field_dfn = ogr.FieldDefn(str(f), f_type)
 			self.field_dfns.append(field_dfn)
+
+	def flush(self):
+		pass
 	
 	def store(self, node, img_bytes):
 		if(node.is_blank or node.is_full):
