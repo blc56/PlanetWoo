@@ -9,6 +9,7 @@ import tiletree.postgres
 import os.path
 import argparse
 import json
+import subprocess
 
 def load_cutter(config):
 	cutter_type = config['cutter_type']
@@ -20,7 +21,7 @@ def load_cutter(config):
 def load_postgres_cutter(connect_str, table_name):
 	return tiletree.postgres.PostgresCutter(connect_str, table_name)
 
-def load_shapefile_cutter(shapefile_path):
+def load_shapefile_cutter(shapefile_path, shapefile_layer):
 	qix_path = check_for_qix(shapefile_path)
 	if(qix_path == None):
 		return  tiletree.shapefile.ShapefileCutter(shapefile_path, str(shapefile_layer))
@@ -34,10 +35,20 @@ def check_for_qix(shapefile_path):
 		return qix_path
 	return None
 
+def load_shapefile(config):
+	if(not config['load_shapefile_to_postgres']):
+		return
+	else:
+		subprocess.call(\
+				'%(prefix)sogr2ogr -f "PostgreSQL" "PG: %(conn_str)s" %(shp_path)s -nlt GEOMETRY %(shp_layer)s' %\
+			{'conn_str':config['connect_string'], 'shp_path':config['shapefile_path'],
+			'shp_layer': config['shapefile_layer'], 'prefix':config['ogr_prefix']}, shell=True)
+
 def render_to_csv(config):
 	generate_jobs = []
 	count = 0
 
+	load_shapefile(config)
 	cutter = load_cutter(config)
 
 	for job in config['jobs']:

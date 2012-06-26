@@ -8,6 +8,7 @@ import os.path
 import math
 import uuid
 import StringIO
+import copy
 
 def split_bbox(min_num_boxes, start_zoom, stop_zoom, min_x, min_y, max_x, max_y):
 	nodes = [tiletree.QuadTreeGenNode(None, min_x, min_y, max_x, max_y, start_zoom)]
@@ -41,16 +42,18 @@ def create_machine_jobs(global_config):
 	render_node_configs = {}
 	for render_node in global_config['render_nodes']:
 		this_num_jobs = min(jobs_per_thread * render_node['num_threads'], len(jobs))
-		this_config = {
+		#inherit the stuff from the global config
+		this_config = copy.copy(global_config)
+		this_config.update({
 			'address': render_node['address'],
 			'num_threads': render_node['num_threads'],
 			'mapfile_path': mapfile_path,
 			'shapefile_path': shapefile_path,
-			'output_prefix': global_config['output_prefix'],
-			'shapefile_layer':  global_config['shapefile_layer'],
-			'mapserver_layers': global_config['mapserver_layers'],
+			#'output_prefix': global_config['output_prefix'],
+			#'shapefile_layer':  global_config['shapefile_layer'],
+			#'mapserver_layers': global_config['mapserver_layers'],
 			'jobs': []
-		}
+		})
 		for job in jobs[0:this_num_jobs]:
 			this_config['jobs'].append({
 				'extent': [job.min_x, job.min_y, job.max_x, job.max_y],
@@ -105,6 +108,7 @@ def run_render_node(global_config, render_node_configs):
 	remote_config_path = copy_data_files(global_config, render_node_config)
 
 	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (global_config['render_script'], remote_config_path))
+	#run("bash -l -c '%s -c %s'" % (global_config['render_script'], remote_config_path))
 
 
 @task
