@@ -5,7 +5,10 @@ import shapely.wkt
 import shapely.geometry
 import shapely.geometry.collection
 import shapely.ops
-import maptree
+try:
+	import maptree
+except:
+	pass
 from osgeo import ogr
 from osgeo import osr
 import copy
