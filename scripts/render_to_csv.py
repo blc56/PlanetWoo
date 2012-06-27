@@ -58,7 +58,7 @@ def render_to_csv(config):
 		start_node = tiletree.QuadTreeGenNode(min_x=job['extent'][0], min_y=job['extent'][1],
 			max_x=job['extent'][2], max_y=job['extent'][3], zoom_level=job['start_zoom'])
 		generate_jobs.append(start_node.to_generator_job(
-			tiletree.csvstorage.CSVStorageManager(open('tree_file_path', 'w'), open(image_file_path, 'w')),
+			tiletree.csvstorage.CSVStorageManager(open(tree_file_path, 'w'), open(image_file_path, 'w')),
 			tiletree.mapserver.MapServerRenderer(open(config['mapfile_path'],'r').read(),
 				config['mapserver_layers'], img_w=256, img_h=256),
 			cutter.clone(),
