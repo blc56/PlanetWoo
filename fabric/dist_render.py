@@ -52,9 +52,6 @@ def create_machine_jobs(global_config):
 			'shapefile_path': shapefile_path,
 			'local_shapefile_path':global_config['shapefile_path'],
 			'local_mapfile_path':global_config['mapfile_path'],
-			#'output_prefix': global_config['output_prefix'],
-			#'shapefile_layer':  global_config['shapefile_layer'],
-			#'mapserver_layers': global_config['mapserver_layers'],
 			'jobs': []
 		})
 		for job in jobs[0:this_num_jobs]:
@@ -126,10 +123,27 @@ def get_progress_from_host(render_node_configs):
 	host_stats = []
 	for x in range(num_jobs):
 		log_file = output_prefix + ('render_%d.log' % x)
-		#host_stats.append(tiletree.parse_stats_line(run('tail -n 1 %s' % log_file)))
 		host_stats.append(run('tail -n 1 %s' % log_file))
 	return host_stats
 
+@parallel
+def get_node_results(render_node_configs):
+	output_prefix = render_node_configs[env.host_string]['output_prefix']
+	num_jobs = len(render_node_configs[env.host_string]['jobs'])
+	host_stats = []
+	for x in range(num_jobs):
+		local('mkdir %s' % env.host)
+		get(output_prefix + '*.csv', env.host)
+		get(output_prefix + '*.log', env.host)
+	return host_stats
+
+@task
+@serial
+def get_results(config_path):
+	global_config=json.loads(open(config_path, 'r').read())
+	render_node_configs = create_machine_jobs(global_config)
+	render_hosts = [n['address'] for n in render_node_configs.values()]
+	execute(get_node_results, render_node_configs, hosts=render_hosts)
 
 @task
 @serial
@@ -150,3 +164,4 @@ def watch_progress(config_path):
 			print '==========================='
 			dump_progress(config_path)
 			time.sleep(5)
+
