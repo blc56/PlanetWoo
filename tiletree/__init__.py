@@ -235,6 +235,22 @@ class Renderer(NullRenderer):
 			return self.render_full()
 		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y)
 
+#def parse_stats_line(stat_line):
+	#fields = stat_line.split()
+	#if(len(fields) != 17):
+		#fields = [None] * 17
+	#return {
+			#'time': fields[1],
+			#'est': fields[3],
+			#'progress': fields[5],
+			#'nps': fields[7],
+			#'cnps': nodes[9],
+			#'nodes': nodes[11],
+			#'blanks': nodes[13],
+			#'fulls': nodes[15],
+			#'savings': nodes[17],
+	#}
+
 class QuadTreeGenStats:
 	def __init__(self, start_zoom, stop_zoom):
 		self.nodes_rendered = 0

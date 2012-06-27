@@ -1,5 +1,5 @@
 ##\file dist_render.py Fabric script for distributed rendering
-from fabric.api import serial, parallel, task, local, settings, abort, run, cd, env, get, put, execute, sudo
+from fabric.api import serial, parallel, task, local, settings, abort, run, cd, env, get, put, execute, sudo, hide
 import json
 import sys
 sys.path.append('../')
@@ -9,6 +9,7 @@ import math
 import uuid
 import StringIO
 import copy
+import time
 
 def split_bbox(min_num_boxes, start_zoom, stop_zoom, min_x, min_y, max_x, max_y):
 	nodes = [tiletree.QuadTreeGenNode(None, min_x, min_y, max_x, max_y, start_zoom)]
@@ -71,7 +72,7 @@ def create_machine_jobs(global_config):
 			'stop_zoom': fill_to_zoom_level
 		})
 
-	print json.dumps(render_node_configs)
+	#print json.dumps(render_node_configs)
 
 	return render_node_configs
 
@@ -121,3 +122,30 @@ def render(config_path):
 	execute(run_render_node, hosts=render_hosts, global_config=global_config,
 			render_node_configs=render_node_configs)
 
+def get_progress_from_host(output_prefix, num_jobs):
+	host_stats = []
+	with hide('status', 'running', 'stdout'):
+		for x in range(num_jobs):
+			log_file = output_prefix + ('render_%d.log' % x)
+			#host_stats.append(tiletree.parse_stats_line(run('tail -n 1 %s' % log_file)))
+			host_stats.append(run('tail -n 1 %s' % log_file))
+	return host_stats
+
+
+@task
+@serial
+def dump_progress(config_path):
+	global_config=json.loads(open(config_path, 'r').read())
+	render_node_configs = create_machine_jobs(global_config)
+	for host_config in render_node_configs.values():
+		stats = get_progress_from_host(host_config['output_prefix'], len(host_config['jobs']))
+
+		for x in range(len(stats)):
+			print host_config['address'] + ',', str(x) + ':', stats[x]
+
+@task
+@serial
+def watch_progress(config_path):
+	while(True):
+		dump_progress(config_path)
+		time.sleep(5)
