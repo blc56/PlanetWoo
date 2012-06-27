@@ -101,6 +101,9 @@ def setup_planetwoo_db_template():
 @task
 def setup_planetwoo_db():
 	sudo('psql -c "create database planetwoo with owner planetwoo template planetwoo_template"', user='postgres')
+	sudo('psql planetwoo -c "alter table geometry_columns owner to planetwoo"', user='postgres')
+	sudo('psql planetwoo -c "alter table geography_columns owner to planetwoo"', user='postgres')
+	sudo('psql planetwoo -c "alter table spatial_ref_sys owner to planetwoo"', user='postgres')
 
 @task
 def install_postgres(data_path='/mnt/planetwoo/pgdata/'):
@@ -129,8 +132,10 @@ def install_user_env(prefix="/opt/planetwoo/"):
 echo '
 PYTHONPATH="%(prefix)s/lib/python2.7/site-packages/:%(prefix)s/PlanetWoo/:${PYTHONPATH}"
 LD_LIBRARY_PATH="%(prefix)s/lib/:${LD_LIBRARY_PATH}"
+PATH="%(prefix)s/bin/:${PATH}"
 export PYTHONPATH
 export LD_LIBRARY_PATH
+export PATH
 ' > %(prefix)s/user_env.sh
 """ % {'prefix': prefix}
 

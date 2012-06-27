@@ -50,6 +50,8 @@ def create_machine_jobs(global_config):
 			'num_threads': render_node['num_threads'],
 			'mapfile_path': mapfile_path,
 			'shapefile_path': shapefile_path,
+			'local_shapefile_path':global_config['shapefile_path'],
+			'local_mapfile_path':global_config['mapfile_path'],
 			#'output_prefix': global_config['output_prefix'],
 			#'shapefile_layer':  global_config['shapefile_layer'],
 			#'mapserver_layers': global_config['mapserver_layers'],
@@ -80,36 +82,31 @@ def create_machine_jobs(global_config):
 def update_planetwoo(prefix="/opt/planetwoo"):
 	with cd('%s/PlanetWoo/' % prefix):
 		sudo('git pull')
-
 @parallel
-def copy_data_files(global_config, render_node_config):
+def copy_data_files(render_node_config):
 	#copy over mapfile, shapefile, and render config files
-	run('mkdir -p %s' % global_config['data_file_dest'])
-	put(global_config['mapfile_path'], global_config['data_file_dest'])
-	shapefile_root = os.path.splitext(global_config['shapefile_path'])[0]
-	put(shapefile_root + '.*', global_config['data_file_dest'])
+	sudo('mkdir -p %s' % render_node_config['data_file_dest'])
+	sudo('chown %(user)s:%(user)s %(path)s' % {'user':env.user, 'path':render_node_config['data_file_dest']})
+	put(render_node_config['local_mapfile_path'], render_node_config['data_file_dest'])
+	shapefile_root = os.path.splitext(render_node_config['local_shapefile_path'])[0]
+	put(shapefile_root + '.*', render_node_config['data_file_dest'])
 
 	tmp_config_bytes = StringIO.StringIO()
 	tmp_config_bytes.write(json.dumps(render_node_config))
 	tmp_file_name = str(uuid.uuid4()) + '.json'
 
-	remote_file_path = os.path.join(global_config['data_file_dest'], tmp_file_name)
+	remote_file_path = os.path.join(render_node_config['data_file_dest'], tmp_file_name)
 	put(tmp_config_bytes, remote_file_path)
 	return remote_file_path
 
-	#copy over user user specified data files
-	#for data_file in global_config['data_files']:
-		#put(data_file, global_config['data_file_dest'])
-
 @parallel
-def run_render_node(global_config, render_node_configs):
+def run_render_node(render_node_configs):
 	update_planetwoo()
-
 	render_node_config = render_node_configs[env.host]
-	remote_config_path = copy_data_files(global_config, render_node_config)
+	remote_config_path = copy_data_files(render_node_config)
 
-	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (global_config['render_script'], remote_config_path))
-	#run("bash -l -c '%s -c %s'" % (global_config['render_script'], remote_config_path))
+	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (render_node_config['render_script'], remote_config_path))
+	#run("bash -l -c '%s -c %s'" % (render_node_config['render_script'], remote_config_path))
 
 
 @task
@@ -118,17 +115,19 @@ def render(config_path):
 	global_config=json.loads(open(config_path, 'r').read())
 	render_node_configs = create_machine_jobs(global_config)
 	render_hosts = [n['address'] for n in render_node_configs.values()]
+	#for some reason it isn't picking up the username from host strings so I manually override it here
+	#ugh!
+	env.user = 'ubuntu'
+	execute(run_render_node, hosts=render_hosts, render_node_configs=render_node_configs)
 
-	execute(run_render_node, hosts=render_hosts, global_config=global_config,
-			render_node_configs=render_node_configs)
-
-def get_progress_from_host(output_prefix, num_jobs):
+def get_progress_from_host(render_node_configs):
+	output_prefix = render_node_configs[env.host_string]['output_prefix']
+	num_jobs = len(render_node_configs[env.host_string]['jobs'])
 	host_stats = []
-	with hide('status', 'running', 'stdout'):
-		for x in range(num_jobs):
-			log_file = output_prefix + ('render_%d.log' % x)
-			#host_stats.append(tiletree.parse_stats_line(run('tail -n 1 %s' % log_file)))
-			host_stats.append(run('tail -n 1 %s' % log_file))
+	for x in range(num_jobs):
+		log_file = output_prefix + ('render_%d.log' % x)
+		#host_stats.append(tiletree.parse_stats_line(run('tail -n 1 %s' % log_file)))
+		host_stats.append(run('tail -n 1 %s' % log_file))
 	return host_stats
 
 
@@ -137,15 +136,17 @@ def get_progress_from_host(output_prefix, num_jobs):
 def dump_progress(config_path):
 	global_config=json.loads(open(config_path, 'r').read())
 	render_node_configs = create_machine_jobs(global_config)
-	for host_config in render_node_configs.values():
-		stats = get_progress_from_host(host_config['output_prefix'], len(host_config['jobs']))
-
-		for x in range(len(stats)):
-			print host_config['address'] + ',', str(x) + ':', stats[x]
+	render_hosts = [n['address'] for n in render_node_configs.values()]
+	stats = execute(get_progress_from_host, render_node_configs, hosts=render_hosts)
+	for host in stats:
+		for x in range(len(stats[host])):
+			print host + ',', str(x) + ':', stats[host][x]
 
 @task
 @serial
 def watch_progress(config_path):
-	while(True):
-		dump_progress(config_path)
-		time.sleep(5)
+	with hide('status', 'running', 'stdout'):
+		while(True):
+			print '==========================='
+			dump_progress(config_path)
+			time.sleep(5)
