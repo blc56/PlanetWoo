@@ -13,6 +13,14 @@ from osgeo import ogr
 from osgeo import osr
 import copy
 
+def cut_geom_list(bbox, geoms):
+	cut_geoms = []
+	for geom in geoms:
+		new_geom = bbox.intersection(geom)
+		if(new_geom and not new_geom.is_empty):
+			cut_geoms.append(new_geom)
+	return cut_geoms
+
 class ShapefileCutter:
 	def __init__(self, shapefile_path, layer_name):
 		ogr_driver = ogr.GetDriverByName('ESRI Shapefile')
@@ -44,7 +52,18 @@ class ShapefileCutter:
 		if(not parent_geom):
 			geom = self.geom
 
-		return bbox.intersection(geom)
+		if(type(geom) == list):
+			geoms = geom
+		elif(not hasattr(geom, 'geoms')):
+			return bbox.intersection(geom)
+		else:
+			geoms = geom.geoms
+
+		cut_geoms = cut_geom_list(bbox, geoms)
+
+		if(len(cut_geoms) == 0):
+			return None
+		return cut_geoms
 
 class MaptreeCutter:
 	def __init__(self, shapefile_path, layer_name, qix_path):
