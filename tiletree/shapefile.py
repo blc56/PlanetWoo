@@ -5,6 +5,7 @@ import shapely.wkt
 import shapely.geometry
 import shapely.geometry.collection
 import shapely.ops
+import types
 try:
 	import maptree
 except:
@@ -21,21 +22,40 @@ def cut_geom_list(bbox, geoms):
 			cut_geoms.append(new_geom)
 	return cut_geoms
 
+def cut_helper(min_x, min_y, max_x, max_y, geom):
+	#build a geometry from the bounds
+	bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
+		{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
+
+	if(type(geom) == list or isinstance(geom, types.GeneratorType)):
+		geoms = geom
+	elif(not hasattr(geom, 'geoms')):
+		return bbox.intersection(geom)
+	else:
+		geoms = geom.geoms
+
+	cut_geoms = cut_geom_list(bbox, geoms)
+
+	if(len(cut_geoms) == 0):
+		return None
+	return cut_geoms
+
 class ShapefileCutter:
 	def __init__(self, shapefile_path, layer_name):
-		ogr_driver = ogr.GetDriverByName('ESRI Shapefile')
-		ogr_ds = ogr_driver.Open(shapefile_path)
-		ogr_layer = ogr_ds.GetLayerByName(layer_name)
+		self.shapefile_path = shapefile_path
+		self.layer_name = layer_name
 
-		collection = ogr.CreateGeometryFromWkt("GEOMETRYCOLLECTION EMPTY")
+	def geom_generator(self):
+		ogr_driver = ogr.GetDriverByName('ESRI Shapefile')
+		ogr_ds = ogr_driver.Open(self.shapefile_path)
+		ogr_layer = ogr_ds.GetLayerByName(self.layer_name)
+
 		f = ogr_layer.GetNextFeature()
 		while(f):
 			geom_ref = f.GetGeometryRef()
 			if(geom_ref):
-				collection.AddGeometry(geom_ref)
+				yield shapely.wkt.loads(geom_ref.ExportToWkt())
 			f = ogr_layer.GetNextFeature()
-
-		self.geom = shapely.wkt.loads(collection.ExportToWkt())
 
 	def clone(self):
 		return copy.deepcopy(self)
@@ -44,26 +64,13 @@ class ShapefileCutter:
 		return self.geom.bounds
 
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
-		#build a geometry from the bounds
-		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
-			{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
 
 		geom = parent_geom
 		if(not parent_geom):
-			geom = self.geom
+			geom = self.geom_generator()
 
-		if(type(geom) == list):
-			geoms = geom
-		elif(not hasattr(geom, 'geoms')):
-			return bbox.intersection(geom)
-		else:
-			geoms = geom.geoms
+		return cut_helper(min_x, min_y, max_x, max_y, geom)
 
-		cut_geoms = cut_geom_list(bbox, geoms)
-
-		if(len(cut_geoms) == 0):
-			return None
-		return cut_geoms
 
 class MaptreeCutter:
 	def __init__(self, shapefile_path, layer_name, qix_path):
