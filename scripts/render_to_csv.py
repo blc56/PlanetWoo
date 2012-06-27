@@ -44,9 +44,12 @@ def render_to_csv(config):
 	generate_jobs = []
 	count = 0
 
+	print "Loading shapefile."
 	load_shapefile(config)
+	print "Loading cutter."
 	cutter = load_cutter(config)
 
+	print "Creating jobs."
 	for job in config['jobs']:
 		tree_file_path = config['output_prefix'] + 'tree_%d.csv' % count
 		image_file_path = config['output_prefix'] + 'images_%d.csv' % count
@@ -65,6 +68,7 @@ def render_to_csv(config):
 
 		count += 1
 
+	print "Running."
 	tiletree.generate_mt(generate_jobs, num_threads=config['num_threads'])
 
 def main():
