@@ -115,6 +115,7 @@ def render(config_path):
 	#for some reason it isn't picking up the username from host strings so I manually override it here
 	#ugh!
 	env.user = 'ubuntu'
+	#env.user = 'excensus'
 	execute(run_render_node, hosts=render_hosts, render_node_configs=render_node_configs)
 
 def get_progress_from_host(render_node_configs):
@@ -132,7 +133,7 @@ def get_node_results(render_node_configs):
 	num_jobs = len(render_node_configs[env.host_string]['jobs'])
 	host_stats = []
 	for x in range(num_jobs):
-		local('mkdir %s' % env.host)
+		local('mkdir -p %s' % env.host)
 		get(output_prefix + '*.csv', env.host)
 		get(output_prefix + '*.log', env.host)
 	return host_stats
