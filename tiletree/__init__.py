@@ -11,6 +11,7 @@ import time
 import shapely.speedups
 import multiprocessing
 import sys
+import types
 
 #if(shapely.speedups.available):
 	#shapely.speedups.enable()
@@ -28,6 +29,32 @@ def build_node_id(zoom_level, tile_x, tile_y):
 		#this node id scheme assumes that we won't have a zoom level
 		#over 22
 	return (tile_y + (tile_x<<22) + (zoom_level<<(22+22)))
+
+def cut_geom_list(bbox, geoms):
+	cut_geoms = []
+	for geom in geoms:
+		if(geom.intersects(bbox)):
+			cut_geoms.append(geom)
+	return cut_geoms
+
+def cut_helper(min_x, min_y, max_x, max_y, geom):
+	#build a geometry from the bounds
+	bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
+		{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
+
+	if(type(geom) == list or isinstance(geom, types.GeneratorType)):
+		geoms = geom
+	elif(not hasattr(geom, 'geoms')):
+		return bbox.intersection(geom)
+	else:
+		geoms = geom.geoms
+
+	cut_geoms = cut_geom_list(bbox, geoms)
+
+	if(len(cut_geoms) == 0):
+		return None
+	return cut_geoms
+
 
 ##\brief A simple, QuadTreeNode
 #

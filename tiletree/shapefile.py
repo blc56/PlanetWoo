@@ -14,32 +14,6 @@ from osgeo import ogr
 from osgeo import osr
 import copy
 
-def cut_geom_list(bbox, geoms):
-	cut_geoms = []
-	for geom in geoms:
-		new_geom = bbox.intersection(geom)
-		if(new_geom and not new_geom.is_empty):
-			cut_geoms.append(new_geom)
-	return cut_geoms
-
-def cut_helper(min_x, min_y, max_x, max_y, geom):
-	#build a geometry from the bounds
-	bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
-		{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
-
-	if(type(geom) == list or isinstance(geom, types.GeneratorType)):
-		geoms = geom
-	elif(not hasattr(geom, 'geoms')):
-		return bbox.intersection(geom)
-	else:
-		geoms = geom.geoms
-
-	cut_geoms = cut_geom_list(bbox, geoms)
-
-	if(len(cut_geoms) == 0):
-		return None
-	return cut_geoms
-
 class ShapefileCutter:
 	def __init__(self, shapefile_path, layer_name):
 		self.shapefile_path = shapefile_path
@@ -69,7 +43,7 @@ class ShapefileCutter:
 		if(not parent_geom):
 			geom = self.geom_generator()
 
-		return cut_helper(min_x, min_y, max_x, max_y, geom)
+		return tiletree.cut_helper(min_x, min_y, max_x, max_y, geom)
 
 
 class MaptreeCutter:

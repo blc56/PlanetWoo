@@ -160,7 +160,6 @@ class PostgresCutter:
 		self.table_name = table_name
 		self.geo_col = geo_col
 		self.input_srid = input_srid
-		self.memory_cutoff=memory_cutoff
 
 	def bbox(self):
 		raise Exception("Not implemented")
@@ -169,42 +168,24 @@ class PostgresCutter:
 		return PostgresCutter(self.conn_str, self.table_name, self.geo_col, self.input_srid)
 
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
-		if(parent_geom == None):
-			return self.db_cut(min_x, min_y, max_x, max_y)
+		geom = parent_geom
+		if(geom == None):
+			geom = self.db_cut(min_x, min_y, max_x, max_y)
 
-		#build a geometry from the bounds
-		bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
-			{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
-
-		try:
-			return bbox.intersection(parent_geom)
-		except:
-			return None
+		return tiletree.cut_helper(min_x, min_y, max_x, max_y, geom)
 
 	def db_cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
 
 		self.curs.execute(\
 """
-SELECT ST_AsBinary(ST_Collect(%(geo_col)s))
+SELECT ST_AsBinary(%(geo_col)s)
 FROM "%(table)s" WHERE ST_Intersects( %(geo_col)s, ST_GeomFromText(
 'POLYGON( ( %%(min_x)s %%(min_y)s, %%(max_x)s %%(min_y)s, %%(max_x)s %%(max_y)s,
 %%(min_x)s %%(max_y)s, %%(min_x)s %%(min_y)s ) )',
 %%(srid)s) ) """ % {'table': self.table_name, 'geo_col':self.geo_col}, {'min_x':min_x, 'min_y':min_y,
 	'max_x':max_y, 'max_y':max_y, 'srid':self.input_srid})
 
-		#print """
-#SELECT ST_AsBinary(ST_Collect(%(geo_col)s))
-#FROM %(table)s WHERE ST_Intersects( %(geo_col)s, ST_GeomFromText(
-#'POLYGON( ( %(min_x)s %(min_y)s, %(max_x)s %(min_y)s, %(max_x)s %(max_y)s,
-#%(min_x)s %(max_y)s, %(min_x)s %(min_y)s ) )',
-#%(srid)s) ) """ % {'table': self.table_name, 'geo_col':self.geo_col, 'min_x':min_x, 'min_y':min_y,
-	#'max_x':max_y, 'max_y':max_y, 'srid':self.input_srid}
-
-		wkb = self.curs.fetchone()[0]
-		if(wkb == None):
-			return wkb
-
-		result = shapely.wkb.loads(str(wkb))
+		result = (shapely.wkb.loads(str(x[0])) for x in self.curs.fetchall())
 
 		return result
 
