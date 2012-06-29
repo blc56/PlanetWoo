@@ -12,8 +12,9 @@ import StringIO
 import copy
 import time
 
-def split_bbox(min_num_boxes, start_zoom, stop_zoom, min_x, min_y, max_x, max_y):
-	nodes = [tiletree.QuadTreeGenNode(None, min_x, min_y, max_x, max_y, start_zoom)]
+def split_bbox(min_num_boxes, start_zoom, start_tile_x, start_tile_y, stop_zoom, min_x, min_y, max_x, max_y):
+	nodes = [tiletree.QuadTreeGenNode(None, min_x, min_y, max_x, max_y, start_zoom, tile_x=start_tile_x,
+		tile_y=start_tile_y)]
 	this_zoom = start_zoom
 
 	while(len(nodes) < min_num_boxes and this_zoom <= stop_zoom):
@@ -29,8 +30,9 @@ def create_machine_jobs(global_config):
 	total_num_threads = sum(x['num_threads'] for x in global_config['render_nodes'])
 	map_extent = global_config['map_extent']
 
-	jobs = split_bbox(total_num_threads, global_config['start_zoom'], global_config['stop_zoom'],
-			*global_config['map_extent'])
+	jobs = split_bbox(total_num_threads, global_config['start_zoom'],
+			global_config['start_tile_x'], global_config['start_tile_y'],
+			global_config['stop_zoom'], *global_config['map_extent'])
 
 	fill_to_zoom_level = jobs[0].zoom_level - 1
 
@@ -71,7 +73,9 @@ def create_machine_jobs(global_config):
 		render_node_configs.values()[0]['jobs'].append({
 			'extent': global_config['map_extent'],
 			'start_zoom': global_config['start_zoom'],
-			'stop_zoom': fill_to_zoom_level
+			'stop_zoom': fill_to_zoom_level,
+			'tile_x': global_config['start_tile_x'],
+			'tile_y': global_config['start_tile_y'],
 		})
 
 	#print json.dumps(render_node_configs)
