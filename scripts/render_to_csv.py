@@ -36,7 +36,7 @@ def load_shapefile(config):
 		return
 	else:
 		subprocess.call(\
-				'%(prefix)sogr2ogr -f "PostgreSQL" "PG: %(conn_str)s" %(shp_path)s -nlt GEOMETRY %(shp_layer)s -overwrite' %\
+				'%(prefix)sogr2ogr -f "PostgreSQL" "PG: %(conn_str)s" %(shp_path)s -nlt GEOMETRY %(shp_layer)s -overwrite -lco PRECISION=no' %\
 			{'conn_str':config['connect_string'], 'shp_path':config['shapefile_path'],
 			'shp_layer': config['shapefile_layer'], 'prefix':config['ogr_prefix']}, shell=True)
 
