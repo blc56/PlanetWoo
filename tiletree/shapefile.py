@@ -5,7 +5,6 @@ import shapely.wkt
 import shapely.geometry
 import shapely.geometry.collection
 import shapely.ops
-import types
 try:
 	import maptree
 except:

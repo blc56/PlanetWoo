@@ -4,6 +4,7 @@ import json
 import sys
 sys.path.append('../')
 import tiletree
+import tiletree.postgres
 import os.path
 import math
 import uuid
@@ -59,6 +60,8 @@ def create_machine_jobs(global_config):
 				'extent': [job.min_x, job.min_y, job.max_x, job.max_y],
 				'start_zoom': job.zoom_level,
 				'stop_zoom': global_config['stop_zoom'],
+				'tile_x':job.tile_x,
+				'tile_y':job.tile_y,
 			})
 		del jobs[0:this_num_jobs]
 		render_node_configs[render_node['address']] = this_config
@@ -145,6 +148,26 @@ def get_results(config_path):
 	render_node_configs = create_machine_jobs(global_config)
 	render_hosts = [n['address'] for n in render_node_configs.values()]
 	execute(get_node_results, render_node_configs, hosts=render_hosts)
+
+@task
+@serial
+def load_results(config_path, connect_str, node_table, image_table, download_dir):
+	global_config=json.loads(open(config_path, 'r').read())
+	render_node_configs = create_machine_jobs(global_config)
+
+	is_first_load = True
+	storage = tiletree.postgres.PostgresStorageManager(connect_str, node_table, image_table)
+	for render_node in render_node_configs.values():
+		if(is_first_load):
+			print 'Create tables.'
+			is_first_load = False
+			storage.recreate_tables()
+		for x in range(0, len(render_node['jobs'])):
+			prefix = os.path.basename(render_node['output_prefix'])
+			tree_path = os.path.join(download_dir, render_node['address']) + '/' + prefix + 'tree_%d.csv' % x
+			image_path = os.path.join(download_dir, render_node['address']) + '/' + prefix + 'images_%d.csv' % x
+			print tree_path, image_path
+			storage.copy(open(tree_path, 'r'), open(image_path, 'r'))
 
 @task
 @serial
