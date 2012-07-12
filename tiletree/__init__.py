@@ -62,7 +62,7 @@ class QuadTreeGenNode:
 	##\param node_id - integer
 	#
 	def __init__(self, node_id=None, min_x=0, min_y=0, max_x=0, max_y=0, zoom_level=0,
-			image_id=None, is_leaf=True, is_blank=True, is_full=False,
+			image_id=None, is_leaf=False, is_blank=False, is_full=False,
 			#child_0=None, child_1=None, child_2=None, child_3=None,
 			geom=None,tile_x=0, tile_y=0):
 		if(node_id == None):
@@ -162,10 +162,10 @@ class QuadTreeGenNode:
 		if(self.geom):
 			self.geom = shapely.wkt.loads(self.geom)
 
-	def to_generator_job(self, storage_manager, renderer, cutter, stop_level, log_file=sys.stdout):
+	def to_generator_job(self, storage_manager, renderer, cutter, stop_level, log_file=sys.stdout, start_checks_zoom=None):
 		return GeneratorJob(self.min_x, self.min_y, self.max_x, self.max_y,
 			self.zoom_level, self.tile_x, self.tile_y, stop_level,
-			storage_manager, renderer, cutter, log_file)
+			storage_manager, renderer, cutter, log_file, start_checks_zoom)
 
 def quad_tree_gen_node_from_json(json_str):
 	node = QuadTreeGenNode()
@@ -362,7 +362,7 @@ class QuadTreeGenStats:
 class GeneratorJob:
 	def __init__(self, min_x, min_y, max_x, max_y, start_level,
 			start_tile_x, start_tile_y, stop_level, storage_manager,
-			renderer, cutter, log_file=sys.stdout):
+			renderer, cutter, log_file=sys.stdout, start_checks_zoom=None):
 		self.min_x = min_x
 		self.min_y = min_y
 		self.max_x = max_x
@@ -375,12 +375,13 @@ class GeneratorJob:
 		self.renderer=renderer
 		self.cutter = cutter
 		self.log_file = log_file
+		self.start_checks_zoom = start_checks_zoom
 
-def generate_node(node, cutter, storage_manager, renderer, stop_level, stats):
-
-	#is this node a leaf?
-	node.is_blank, node.is_full, node.is_leaf =\
-		renderer.tile_info(node.geom, node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)
+def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom=None):
+	if(start_checks_zoom != None and node.zoom_level >= start_checks_zoom):
+		#is this node a leaf?
+		node.is_blank, node.is_full, node.is_leaf =\
+			renderer.tile_info(node.geom, node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)
 
 	if(node.zoom_level >= stop_level):
 		node.is_leaf = True
@@ -399,17 +400,22 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats):
 	if(node.is_leaf):
 		return []
 
-	return node.split(cutter)
+	#figure out the geometry associated with a node at start_checks_zoom - 1
+	#so that the next tile_info() call won't find a None value for geometry
+	if(start_checks_zoom != None and node.zoom_level >= (start_checks_zoom - 1)):
+		return node.split(cutter)
+	return node.split()
 
-def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout):
+def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout, start_checks_zoom=4):
 	stats = QuadTreeGenStats(start_level, stop_level)
 	stats.reset_timer()
 
 	#create the initial QuadTreeGenNode
 	root_node = QuadTreeGenNode(None,min_x,min_y,max_x,max_y,
 		zoom_level=start_level, tile_x=start_tile_x, tile_y=start_tile_y)
-	root_geom = cutter.cut(min_x, min_y, max_x, max_y)
-	root_node.geom = root_geom
+	root_geom = None
+	if(start_checks_zoom != None and root_node.zoom_level >= start_checks_zoom):
+		root_node.geom = cutter.cut(min_x, min_y, max_x, max_y)
 
 	nodes_to_render = [root_node]
 	last_stat_output = time.time()
@@ -418,7 +424,7 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 		this_node = nodes_to_render.pop()
 		#print this_node.zoom_level, this_node.tile_x, this_node.tile_y, this_node.min_x, this_node.min_y,\
 			#this_node.max_x, this_node.max_y
-		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats)
+		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom)
 		nodes_to_render.extend(children)
 
 		#output stats every so often
@@ -442,7 +448,8 @@ def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 		job_args.append((job.min_x, job.min_y, job.max_x, job.max_y,
 			job.storage_manager, job.renderer, job.cutter,
 			job.start_level, job.start_tile_x,
-			job.start_tile_y, job.stop_level, job.log_file))
+			job.start_tile_y, job.stop_level, job.log_file,
+			job.start_checks_zoom))
 		job.storage_manager.flush()
 
 	#line up
