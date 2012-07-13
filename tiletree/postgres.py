@@ -175,7 +175,6 @@ class PostgresCutter:
 		return tiletree.cut_helper(min_x, min_y, max_x, max_y, geom)
 
 	def db_cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
-
 		self.curs.execute(\
 """
 SELECT ST_AsBinary(%(geo_col)s)

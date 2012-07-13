@@ -54,6 +54,7 @@ def render_to_csv(config):
 		tree_file_path = config['output_prefix'] + 'tree_%d.csv' % count
 		image_file_path = config['output_prefix'] + 'images_%d.csv' % count
 		log_file = open(config['output_prefix'] + 'render_%d.log' % count, 'w')
+		start_checks_zoom = config.get('start_checks_zoom', None)
 				
 		start_node = tiletree.QuadTreeGenNode(min_x=job['extent'][0], min_y=job['extent'][1],
 			max_x=job['extent'][2], max_y=job['extent'][3], zoom_level=job['start_zoom'],
@@ -64,7 +65,8 @@ def render_to_csv(config):
 				config['mapserver_layers'], img_w=256, img_h=256),
 			cutter.clone(),
 			job['stop_zoom'],
-			log_file)
+			log_file,
+			start_checks_zoom)
 		)
 
 		count += 1
