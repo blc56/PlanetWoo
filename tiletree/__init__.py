@@ -162,10 +162,10 @@ class QuadTreeGenNode:
 		if(self.geom):
 			self.geom = shapely.wkt.loads(self.geom)
 
-	def to_generator_job(self, storage_manager, renderer, cutter, stop_level, log_file=sys.stdout, start_checks_zoom=None):
+	def to_generator_job(self, storage_manager, renderer, cutter, stop_level, log_file=sys.stdout, start_checks_zoom=None, check_full=True):
 		return GeneratorJob(self.min_x, self.min_y, self.max_x, self.max_y,
 			self.zoom_level, self.tile_x, self.tile_y, stop_level,
-			storage_manager, renderer, cutter, log_file, start_checks_zoom)
+			storage_manager, renderer, cutter, log_file, start_checks_zoom, check_full)
 
 def quad_tree_gen_node_from_json(json_str):
 	node = QuadTreeGenNode()
@@ -221,7 +221,7 @@ class NullRenderer:
 		return (self.blank_img_id, self.blank_img_bytes)
 
 	#\return (is_blank, is_full, is_leaf)
-	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
+	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level, check_full=True):
 		is_blank = False
 		is_full = False
 		is_leaf = False
@@ -238,7 +238,7 @@ class Renderer(NullRenderer):
 		NullRenderer.__init__(self, img_w, img_h, img_prefix)
 
 	#\return (is_blank, is_full, is_leaf)
-	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level):
+	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level, check_full=True):
 		is_blank = False
 		is_full = False
 		is_leaf = False
@@ -246,7 +246,7 @@ class Renderer(NullRenderer):
 		if(geometry == None or (hasattr(geometry, 'is_empty') and geometry.is_empty)):
 			is_blank = True
 			is_leaf = True
-		else:
+		elif(check_full):
 			bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
 				{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
 			if(type(geometry) == list):
@@ -268,22 +268,6 @@ class Renderer(NullRenderer):
 		elif(is_full):
 			return self.render_full()
 		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y)
-
-#def parse_stats_line(stat_line):
-	#fields = stat_line.split()
-	#if(len(fields) != 17):
-		#fields = [None] * 17
-	#return {
-			#'time': fields[1],
-			#'est': fields[3],
-			#'progress': fields[5],
-			#'nps': fields[7],
-			#'cnps': nodes[9],
-			#'nodes': nodes[11],
-			#'blanks': nodes[13],
-			#'fulls': nodes[15],
-			#'savings': nodes[17],
-	#}
 
 class QuadTreeGenStats:
 	def __init__(self, start_zoom, stop_zoom):
@@ -362,7 +346,8 @@ class QuadTreeGenStats:
 class GeneratorJob:
 	def __init__(self, min_x, min_y, max_x, max_y, start_level,
 			start_tile_x, start_tile_y, stop_level, storage_manager,
-			renderer, cutter, log_file=sys.stdout, start_checks_zoom=None):
+			renderer, cutter, log_file=sys.stdout, start_checks_zoom=None,
+			check_full=True):
 		self.min_x = min_x
 		self.min_y = min_y
 		self.max_x = max_x
@@ -377,11 +362,11 @@ class GeneratorJob:
 		self.log_file = log_file
 		self.start_checks_zoom = start_checks_zoom
 
-def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom=None):
+def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom=None, check_full=True):
 	if(start_checks_zoom != None and node.zoom_level >= start_checks_zoom):
 		#is this node a leaf?
 		node.is_blank, node.is_full, node.is_leaf =\
-			renderer.tile_info(node.geom, node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level)
+			renderer.tile_info(node.geom, node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level, check_full)
 
 	if(node.zoom_level >= stop_level):
 		node.is_leaf = True
@@ -406,7 +391,7 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, st
 		return node.split(cutter)
 	return node.split()
 
-def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout, start_checks_zoom=4):
+def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout, start_checks_zoom=4, check_full=True):
 	stats = QuadTreeGenStats(start_level, stop_level)
 	stats.reset_timer()
 
