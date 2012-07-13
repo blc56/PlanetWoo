@@ -8,6 +8,7 @@ sys.path.append('../')
 import tiletree
 import tiletree.fsstorage
 import tiletree.postgres
+import tiletree.composite
 
 class TileFetcher(tornado.web.RequestHandler):
 	def initialize(self, storage_manager):
@@ -25,25 +26,27 @@ class TileFetcher(tornado.web.RequestHandler):
 def main():
 	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")
 	parser.add_argument('-p', '--port', dest='port', required=True, action='store',)
-	parser.add_argument('-t', '--tree-table', dest='tree_table', required=True, action='store',)
-	parser.add_argument('-i', '--images-table', dest='images_table', required=True, action='store',)
 	parser.add_argument('-u', '--url-prefix', dest='url_prefix', required=False, action='store',
 		default='/slippy_map/')
 	parser.add_argument('-b', '--bind-address', dest='bind_address', required=False, action='store',
 		default='127.0.0.1')
 	parser.add_argument('-c', '--conn-str', dest='conn_str', required=False, action='store',
 		default='dbname=planetwoo user=planetwoo')
+	parser.add_argument('-l', '--layer', dest='layers', required=True, nargs='+', help="tree-table,image-table")
 	args = parser.parse_args()
 
 	port = int(args.port)
 
-	storage_manager =\
-		tiletree.postgres.PostgresStorageManager(\
-		args.conn_str,args.tree_table,args.images_table)
+	storage_managers =[]
+	for layer in args.layers:
+		tree_table, image_table = layer.split(',')
+		storage_managers.append(tiletree.postgres.PostgresStorageManager(args.conn_str, tree_table, image_table))
+
+	compositor = tiletree.composite.TileCompositor(storage_managers)
 
 	app = tornado.web.Application([
 		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, TileFetcher,
-			{'storage_manager':storage_manager}),
+			{'storage_manager':compositor}),
 	])
 
 	app.listen(port, address=args.bind_address)
