@@ -361,6 +361,7 @@ class GeneratorJob:
 		self.cutter = cutter
 		self.log_file = log_file
 		self.start_checks_zoom = start_checks_zoom
+		self.check_full = check_full
 
 def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom=None, check_full=True):
 	if(start_checks_zoom != None and node.zoom_level >= start_checks_zoom):
@@ -434,7 +435,8 @@ def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 			job.storage_manager, job.renderer, job.cutter,
 			job.start_level, job.start_tile_x,
 			job.start_tile_y, job.stop_level, job.log_file,
-			job.start_checks_zoom))
+			job.start_checks_zoom,
+			job.check_full))
 		job.storage_manager.flush()
 
 	#line up
