@@ -108,6 +108,11 @@ def run_render_node(render_node_configs):
 	update_planetwoo()
 	render_node_config = render_node_configs[env.host]
 	remote_config_path = copy_data_files(render_node_config)
+	#for some reason it isn't picking up the username from host strings so I manually override it here
+	#ugh!
+	host_parts = render_node_config['address'].split('@')
+	if(len(host_parts) == 2):
+		env.user=host_parts[0]
 
 	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (render_node_config['render_script'], remote_config_path))
 	#run("bash -l -c '%s -c %s'" % (render_node_config['render_script'], remote_config_path))
@@ -119,10 +124,6 @@ def render(config_path):
 	global_config=json.loads(open(config_path, 'r').read())
 	render_node_configs = create_machine_jobs(global_config)
 	render_hosts = [n['address'] for n in render_node_configs.values()]
-	#for some reason it isn't picking up the username from host strings so I manually override it here
-	#ugh!
-	env.user = 'ubuntu'
-	#env.user = 'excensus'
 	execute(run_render_node, hosts=render_hosts, render_node_configs=render_node_configs)
 
 def get_progress_from_host(render_node_configs):
