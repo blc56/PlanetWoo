@@ -28,9 +28,12 @@ def split_bbox(min_num_boxes, start_zoom, start_tile_x, start_tile_y, stop_zoom,
 
 def create_machine_jobs(global_config):
 	total_num_threads = sum(x['num_threads'] for x in global_config['render_nodes'])
+	min_num_jobs = global_config.get('min_num_jobs', 1)
+	if(total_num_threads > min_num_jobs):
+		min_num_jobs = total_num_threads
 	map_extent = global_config['map_extent']
 
-	jobs = split_bbox(total_num_threads, global_config['start_zoom'],
+	jobs = split_bbox(min_num_jobs, global_config['start_zoom'],
 			global_config['start_tile_x'], global_config['start_tile_y'],
 			global_config['stop_zoom'], *global_config['map_extent'])
 
