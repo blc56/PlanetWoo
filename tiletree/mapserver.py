@@ -5,6 +5,7 @@ import shapely.wkt
 import shapely.geometry
 import time
 import mapscript
+import tiletree
 
 class MapServerRenderer(Renderer):
 	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_prefix='images/'):
@@ -18,14 +19,54 @@ class MapServerRenderer(Renderer):
 			#'shapefile_path' : shapefile_path
 		}
 		self.mapfile = mapscript.fromstring(self.mapfile_template % template_args)
+		self.mapfile.loadOWSParameters(self.build_request(0, 0, 10, 10))
+
+	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level, check_full=True):
+		is_blank = True
+		is_full = False
+		is_leaf = True
+
+		#NOTE: we make the assumption here that a full node will contain only
+		#one geometry
+		rect = mapscript.rectObj(min_x, min_y, max_x, max_y)
+		self.mapfile.queryByRect(rect)
+		for x in range(self.mapfile.numlayers):
+			layer = self.mapfile.getLayer(x)
+			layer.open()
+			num_results = layer.getNumResults()
+			if(num_results > 0 and num_results != 1):
+				is_blank = False
+				is_leaf = False
+				layer.close()
+				#this is a non blank, non full node
+				break
+			elif(num_results == 1):
+				is_blank = False
+				is_leaf = False
+				if(check_full):
+					result = layer.getResult(0)
+					shape = layer.getShape(result)
+					bbox_shape = mapscript.shapeObj_fromWKT(tiletree.bbox_to_wkt(min_x, min_y, max_x, max_y))
+					if(shape.contains(bbox_shape)):
+						is_full=True
+						is_leaf=True
+						layer.close()
+						break
+					#geom = shapely.wkt.loads(shape.toWKT())
+					#bbox_geom = shapely.wkt.loads(tiletree.bbox_to_wkt(min_x, min_y, max_x, max_y))
+					#if(geom.contains(bbox_geom)):
+						#is_full=True
+						#is_leaf=True
+						#layer.close()
+						#break
+			layer.close()
+
+		self.mapfile.freeQuery()
+		return (is_blank, is_full, is_leaf)
 
 	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
-		#aparrently, setExtent() is not the same as whatever the BBOX parameter does
-		#once I figure out the equivalent swig call we can get rid of the request processing
-		#zoomRectangle() maybe?
-		self.mapfile.loadOWSParameters(self.build_request(min_x, min_y, max_x, max_y))
-		#self.mapfile.setExtent(min_x, min_y, max_x, max_y)
-
+		self.mapfile.setExtent(min_x, min_y, max_x, max_y)
+		#self.mapfile.loadOWSParameters(self.build_request(min_x, min_x, max_x, max_y))
 		img = self.mapfile.draw()
 
 		img_id = build_node_id(zoom_level, tile_x, tile_y)
@@ -55,8 +96,6 @@ class MapServerRenderer(Renderer):
 		wms_req.setParameter('FORMAT', 'image/png')
 		wms_req.setParameter('WIDTH', str(self.img_w))
 		wms_req.setParameter('HEIGHT', str(self.img_h))
-		#wms_req.setParameter('WIDTH', '2048')
-		#wms_req.setParameter('HEIGHT', '2048')
 		wms_req.setParameter('SRS', 'EPSG:3857')
 		wms_req.setParameter('REQUEST', 'GetMap')
 		wms_req.setParameter('BBOX', ','.join(str(x) for x in [min_x, min_y, max_x, max_y]))

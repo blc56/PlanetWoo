@@ -146,7 +146,7 @@ export PATH
 #for ubuntu 12.04 machines
 def install_deps(prefix="/opt/planetwoo/"):
 	#fix zlib library link so that PIL will come with zlib (and thus png) suport
-	sudo('rm -f /usr/lib/libgd.so')
+	sudo('rm -f /usr/lib/libz.so')
 	sudo('ln -s /usr/lib/x86_64-linux-gnu/libz.so /usr/lib/')
 
 
@@ -194,9 +194,10 @@ def install_deps(prefix="/opt/planetwoo/"):
 		sudo('tar -xf mapserver-6.0.3.tar.gz')
 		with cd('mapserver-6.0.3'):
 			#hack to fix mapserver compilation?
-			sudo('rm -f /usr/lib/libgd.so')
-			sudo('ln -s /usr/lib/x86_64-linux-gnu/libgd.so /usr/lib/')
-			sudo('./configure --with-xml --with-wfs --with-wmsclient --with-wfsclient --with-postgis --with-freetype --with-proj --with-gdal=%(prefix)s/bin/gdal-config --with-ogr=%(prefix)s/bin/gdal-config --prefix=%(prefix)s' % {'prefix': prefix})
+			#it looks like ubuntu has finally fixed this. hurray
+			#sudo('rm -f /usr/lib/libgd.so')
+			#sudo('ln -s /usr/lib/x86_64-linux-gnu/libgd.so /usr/lib/')
+			sudo('./configure --with-xml --with-wfs --with-wmsclient --with-wfsclient --with-postgis --with-freetype --with-proj --with-gdal=%(prefix)s/bin/gdal-config --with-ogr=%(prefix)s/bin/gdal-config --prefix=%(prefix)s --with-geos' % {'prefix': prefix})
 			sudo('make')
 			sudo('make install')
 

@@ -17,8 +17,6 @@ def null_test():
 	storage_manager = tiletree.NullStorageManager()
 	renderer = tiletree.NullRenderer()
 	cutter = tiletree.NullGeomCutter()
-	#cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	#min_x, min_y, max_x, max_y = cutter.bbox()
 	min_x = 0
 	min_y = 0
 	max_x = 10
@@ -42,7 +40,7 @@ def null_csv_tree_test():
 	storage_manager = tiletree.csvstorage.CSVStorageManager(open('null_csv_tree.csv','w'), open('null_csv_images.csv', 'w'))
 	renderer = tiletree.NullRenderer()
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	min_x, min_y, max_x, max_y = cutter.bbox()
+	min_x, min_y, max_x, max_y = (-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
 	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=2)
 
 def shapefile_cutter_test():
@@ -60,20 +58,11 @@ def maptree_cutter_test():
 
 def mapserver_render_test():
 	print "Mapserver render test"
-	storage_manager = tiletree.csvstorage.CSVStorageManager(open('mapserver_tree.csv','w'), open('mapserver_images.csv', 'w'))
-	shape_cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	cutter=shape_cutter
+	#storage_manager = tiletree.csvstorage.CSVStorageManager(open('mapserver_tree.csv','w'), open('mapserver_images.csv', 'w'))
+	storage_manager = tiletree.fsstorage.FSStorageManager(image_prefix='test_images/')
 	renderer = tiletree.mapserver.MapServerRenderer(open('default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
-	min_x, min_y, max_x, max_y = shape_cutter.bbox()
-	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=3)
-
-def pil_render_test():
-	print "PIL render test"
-	storage_manager = tiletree.csvstorage.CSVStorageManager(open('pil_tree.csv','w'), open('pil_images.csv', 'w'))
-	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	renderer = tiletree.pil.PILRenderer()
-	min_x, min_y, max_x, max_y = cutter.bbox()
-	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=3)
+	min_x, min_y, max_x, max_y = (-19338083.638408754, 804303.8439259261, -2215605.96243665, 17926781.51989803)
+	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, tiletree.NullGeomCutter(), stop_level=4)
 
 def postgres_test():
 	print "Postgres test"
@@ -89,7 +78,7 @@ def geom_builder_csv_test():
 				'min_x', 'min_y', 'max_x', 'max_y', 'is_leaf', 'is_blank', 'is_full', 'geom'])
 	renderer = tiletree.NullRenderer()
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	min_x, min_y, max_x, max_y = cutter.bbox()
+	min_x, min_y, max_x, max_y = (-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
 	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=3)
 
 def geom_builder_shapefile_test():
@@ -97,7 +86,7 @@ def geom_builder_shapefile_test():
 	storage_manager = tiletree.shapefile.ShapefileStorageManager('tile_geom.shp', 'tile_geom')
 	renderer = tiletree.NullRenderer()
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	min_x, min_y, max_x, max_y = cutter.bbox()
+	min_x, min_y, max_x, max_y = (-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
 	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=3)
 
 def individual_geom_builder_shapefile_test():
@@ -110,7 +99,7 @@ def individual_geom_builder_shapefile_test():
 
 	renderer = tiletree.NullRenderer()
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
-	min_x, min_y, max_x, max_y = cutter.bbox()
+	min_x, min_y, max_x, max_y = (-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
 	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=3)
 
 def meta_tile_mapserver_test():
@@ -119,14 +108,14 @@ def meta_tile_mapserver_test():
 	storage_manager = tiletree.splitstorage.SplitStorageManager(backend_storage_manager, 3)
 	cutter = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america')
 	renderer = tiletree.mapserver.MapServerRenderer(open('split_default.map','r').read(),['poly_fill'], img_w=256, img_h=256)
-	min_x, min_y, max_x, max_y = cutter.bbox()
+	min_x, min_y, max_x, max_y = (-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
 	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, stop_level=4)
 	backend_storage_manager.close()
 
 def mapserver_mt_test():
 	print "Mapserver multithreaded test"
 	#use a node the calculate the parameters for each job
-	total_bbox = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america').bbox()
+	total_bbox = (-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
 	root_node = tiletree.QuadTreeGenNode(min_x=total_bbox[0], min_y=total_bbox[1], max_x=total_bbox[2], max_y=total_bbox[3])
 	job_nodes = root_node.split()
 	stop_level = 2
@@ -159,7 +148,7 @@ def mapserver_mt_test():
 def meta_mapserver_mt_test():
 	print "Mapserver multithreaded test"
 	#use a node the calculate the parameters for each job
-	total_bbox = tiletree.shapefile.ShapefileCutter('test_geo/webmerc_northamerica/north_america.shp', 'north_america').bbox()
+	total_bbox = (-15696351.547463987, 804303.8439259261, -5857338.053381417, 17926781.51989803)
 	root_node = tiletree.QuadTreeGenNode(min_x=total_bbox[0], min_y=total_bbox[1], max_x=total_bbox[2], max_y=total_bbox[3])
 	job_nodes = root_node.split()
 	stop_level = 4
@@ -203,21 +192,20 @@ def postgres_csv_load_test():
 	storage_manager.copy(open('mapserver_tree.csv','r'),open('mapserver_images.csv','r'))
 
 def main():
-	null_test()
-	null_fs_tree_test()
-	null_csv_tree_test()
-	shapefile_cutter_test()
-	maptree_cutter_test()
+	#null_test()
+	#null_fs_tree_test()
+	#null_csv_tree_test()
+	#shapefile_cutter_test()
+	#maptree_cutter_test()
 	mapserver_render_test()
-	pil_render_test()
-	postgres_test()
-	geom_builder_csv_test()
-	geom_builder_shapefile_test()
-	individual_geom_builder_shapefile_test()
-	meta_tile_mapserver_test()
-	mapserver_mt_test()
-	meta_mapserver_mt_test()
-	postgres_csv_load_test()
+	#postgres_test()
+	#geom_builder_csv_test()
+	#geom_builder_shapefile_test()
+	#individual_geom_builder_shapefile_test()
+	#meta_tile_mapserver_test()
+	#mapserver_mt_test()
+	#meta_mapserver_mt_test()
+	#postgres_csv_load_test()
 
 if( __name__ == '__main__'):
 	main()

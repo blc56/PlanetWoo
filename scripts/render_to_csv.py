@@ -19,6 +19,8 @@ def load_cutter(config):
 		return load_maptree_cutter(config['shapefile_path'], config['shapefile_layer'])
 	elif(cutter_type == 'postgres'):
 		return load_postgres_cutter(config['connect_string'], config['table_name'])
+	else:
+		return tiletree.NullGeomCutter()
 
 def load_postgres_cutter(connect_str, table_name):
 	return tiletree.postgres.PostgresCutter(connect_str, table_name)

@@ -17,9 +17,20 @@ import types
 	#shapely.speedups.enable()
 	#print "SPEEDUP?"
 
+def bbox_to_wkt(min_x, min_y, max_x, max_y):
+	return "POLYGON((%(min_x)s %(min_y)s, %(max_x)s %(min_y)s, %(max_x)s %(max_y)s, %(min_x)s %(max_y)s, %(min_x)s %(min_y)s))" % {
+		'min_x': min_x,
+		'min_y': min_y,
+		'max_x': max_x,
+		'max_y': max_y,
+	}
+
 class NullGeomCutter:
 	def __init__(self):
 		pass
+
+	def clone(self):
+		return copy.deepcopy(self)
 
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
 		#raise Exception("Not implemented")
@@ -392,7 +403,7 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, st
 		return node.split(cutter)
 	return node.split()
 
-def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout, start_checks_zoom=4, check_full=True):
+def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout, start_checks_zoom=0, check_full=True):
 	stats = QuadTreeGenStats(start_level, stop_level)
 	stats.reset_timer()
 

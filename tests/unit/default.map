@@ -36,6 +36,7 @@ LAYER
 	PROJECTION
 		"init=epsg:3857"
 	END
+	TEMPLATE "dummy_template"
 
 	TYPE POLYGON
 	STATUS DEFAULT
