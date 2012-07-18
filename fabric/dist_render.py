@@ -108,14 +108,15 @@ def copy_data_files(render_node_config):
 
 @parallel
 def run_render_node(render_node_configs):
-	update_planetwoo()
 	render_node_config = render_node_configs[env.host]
-	remote_config_path = copy_data_files(render_node_config)
 	#for some reason it isn't picking up the username from host strings so I manually override it here
 	#ugh!
 	host_parts = render_node_config['address'].split('@')
 	if(len(host_parts) == 2):
 		env.user=host_parts[0]
+
+	update_planetwoo()
+	remote_config_path = copy_data_files(render_node_config)
 
 	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (render_node_config['render_script'], remote_config_path))
 	#run("bash -l -c '%s -c %s'" % (render_node_config['render_script'], remote_config_path))
