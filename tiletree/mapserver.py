@@ -97,6 +97,8 @@ class MapServerRenderer(Renderer):
 		wms_req.setParameter('WIDTH', str(self.img_w))
 		wms_req.setParameter('HEIGHT', str(self.img_h))
 		wms_req.setParameter('SRS', 'EPSG:3857')
+		#TODO make this configurable
+		#wms_req.setParameter('SRS', 'EPSG:4326')
 		wms_req.setParameter('REQUEST', 'GetMap')
 		wms_req.setParameter('BBOX', ','.join(str(x) for x in [min_x, min_y, max_x, max_y]))
 		wms_req.setParameter('LAYERS', ','.join(self.layers) )

@@ -10,33 +10,35 @@ import tiletree
 import tiletree.mapserver
 import tiletree.postgres
 import tiletree.composite
+from scripts.render_to_csv import load_cutter
 
 class DynamicTileFetcher(tornado.web.RequestHandler):
-	def initialize(self, storage_manager):
+	def initialize(self, storage_manager, layers):
 		self.storage_manager = storage_manager
+		self.layers = layers
 
 	def get(self, zoom_level, x, y):
 		zoom_level = int(zoom_level)
 		x = int(x)
 		y = int(y)
 
-		img_file = self.storage_manager.dynamic_fetch(zoom_level, x, y)
+		img_file = self.storage_manager.dynamic_fetch(zoom_level, x, y, self.layers)
 		self.set_header('Content-Type', 'image/png')
 		self.write(img_file.read())
 
 def load_config(config_path, conn_str):
 	config = json.loads(open(config_path, 'r').read())
-	cutters = []
-	renderers = []
-	storage_managers = []
-	for layer in config['layer_order']:
-		layer = config[layer]
-		cutters.append(tiletree.NullGeomCutter())
-		renderers.append(tiletree.mapserver.MapServerRenderer(open(layer['mapfile'],'r').read(), layer['layers']))
-		storage_managers.append(tiletree.postgres.PostgresStorageManager(conn_str, layer['tree_table'],
-			layer['image_table']))
+	render_infos = {}
+	for layer_name in config['layer_order']:
+		layer = config[layer_name]
+		cutter = load_cutter(layer)
+		renderer = tiletree.mapserver.MapServerRenderer(open(layer['mapfile'],'r').read(), layer['layers'])
+		storage_manager = tiletree.postgres.PostgresStorageManager(conn_str, layer['tree_table'],
+			layer['image_table'])
+		render_infos[layer_name] = tiletree.composite.RenderInfo(storage_manager, renderer, cutter, layer.get('check_full', True))
 
-	return tiletree.composite.TileCompositor(storage_managers, renderers, cutters, config['extent'])
+	return (tiletree.composite.TileCompositor(render_infos, config['extent']),
+			config['layer_order'])
 
 def main():
 	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")
@@ -52,11 +54,11 @@ def main():
 
 	port = int(args.port)
 
-	compositor = load_config(args.config_file, args.conn_str)
+	compositor, layers = load_config(args.config_file, args.conn_str)
 
 	app = tornado.web.Application([
 		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, DynamicTileFetcher,
-			{'storage_manager':compositor}),
+			{'storage_manager':compositor, 'layers':layers}),
 	])
 
 	app.listen(port, address=args.bind_address)
