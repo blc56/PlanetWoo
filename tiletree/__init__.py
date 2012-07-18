@@ -25,6 +25,19 @@ def bbox_to_wkt(min_x, min_y, max_x, max_y):
 		'max_y': max_y,
 	}
 
+def tile_coord_to_bbox(z, x, y, extent):
+	#the size of each tile at zoom level z
+	tile_dim = 2**z
+	x_size = (extent[2] - extent[0]) / float(tile_dim)
+	y_size = (extent[3] - extent[1]) / float(tile_dim)
+
+	min_x = extent[0] + (x_size * x)
+	min_y = extent[3] - (y_size * (y + 1))
+	max_x = min_x + x_size
+	max_y = min_y + y_size
+
+	return (min_x, min_y, max_x, max_y)
+
 class NullGeomCutter:
 	def __init__(self):
 		pass
@@ -182,6 +195,13 @@ def quad_tree_gen_node_from_json(json_str):
 	node = QuadTreeGenNode()
 	node.from_json(json_str)
 	return node
+
+class TileNotFoundException(Exception):
+	def __init__(self, *args):
+		self.value = args
+
+	def __repr__(self):
+		return repr(self.value)
 
 class NullStorageManager:
 	def __init__(self):

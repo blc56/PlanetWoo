@@ -95,11 +95,11 @@ img_bytes BYTEA
 		#find that leaf node and return its image
 		curs = self.conn.cursor()
 
-		print '===================='
-		print zoom_level, x, y
+		#print '===================='
+		#print zoom_level, x, y
 
 		for z in range(zoom_level, -1, -1):
-			print z, x, y
+			#print z, x, y
 			node_id = tiletree.build_node_id(z, x, y)
 
 			curs.execute(\
@@ -113,13 +113,13 @@ WHERE nodes.node_id = %%s AND images.image_id = nodes.image_id
 				#if we end up pulling an image from a node at a higher
 				#zoom level, it should be a leaf node
 				if(z != zoom_level and not result[1]):
-					raise Exception("Tile not found")
+					raise tiletree.TileNotFoundException()
 				return StringIO.StringIO(result[0])
 
 			x = int(math.floor(x/2.0))
 			y = int(math.floor(y/2.0))
 
-		raise Exception("Tile not found")
+		raise tiletree.TileNotFoundException()
 
 	def store_image(self, node, img_bytes):
 		curs = self.conn.cursor()
