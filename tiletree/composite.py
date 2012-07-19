@@ -4,11 +4,13 @@ import StringIO
 import tiletree
 
 class RenderInfo:
-	def __init__(self, storage_manager, renderer, cutter, check_full):
+	def __init__(self, storage_manager, renderer, cutter, check_full, start_zoom=None, stop_zoom=None):
 		self.storage_manager = storage_manager
 		self.renderer = renderer
 		self.cutter = cutter
 		self.check_full = check_full
+		self.start_zoom = start_zoom
+		self.stop_zoom = stop_zoom
 
 class TileCompositor:
 	def __init__(self, render_info_dict, extent=(0, 0, 0, 0)):
@@ -26,6 +28,9 @@ class TileCompositor:
 		return self.fetch_helper(tile_generator)
 
 	def fetch_render(self, zoom_level, x, y, render_info, extent):
+			if((render_info.start_zoom != None and render_info.start_zoom > zoom_level) or
+					(render_info.stop_zoom != None and render_info.stop_zoom < zoom_level) ):
+				return None
 			storage_manager = render_info.storage_manager
 			renderer = render_info.renderer
 			cutter = render_info.cutter
@@ -49,6 +54,8 @@ class TileCompositor:
 		#then composite those layers together
 		output_tile = None
 		for tile in tile_generator:
+			if(tile == None):
+				continue
 			if(output_tile == None):
 				output_tile = Image.open(tile)
 				continue

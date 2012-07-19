@@ -91,7 +91,7 @@ class MapServerRenderer(Renderer):
 
 	def build_request(self, min_x, min_y, max_x, max_y):
 		wms_req = mapscript.OWSRequest()
-		wms_req.setParameter('MODE', 'WMS')
+		wms_req.setParameter('MODE', 'tile')
 		wms_req.setParameter('VERSION', '1.1.1')
 		wms_req.setParameter('FORMAT', 'image/png')
 		wms_req.setParameter('WIDTH', str(self.img_w))
