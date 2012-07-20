@@ -8,8 +8,8 @@ import mapscript
 import tiletree
 
 class MapServerRenderer(Renderer):
-	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_prefix='images/'):
-		Renderer.__init__(self, img_w, img_h, img_prefix)
+	def __init__(self, mapfile_template, layers, img_w=256, img_h=256):
+		Renderer.__init__(self, img_w, img_h)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
 
@@ -21,14 +21,14 @@ class MapServerRenderer(Renderer):
 		self.mapfile = mapscript.fromstring(self.mapfile_template % template_args)
 		self.mapfile.loadOWSParameters(self.build_request(0, 0, 10, 10))
 
-	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level, check_full=True):
+	def tile_info(self, node, check_full=True):
 		is_blank = True
 		is_full = False
 		is_leaf = True
 
 		#NOTE: we make the assumption here that a full node will contain only
 		#one geometry
-		rect = mapscript.rectObj(min_x, min_y, max_x, max_y)
+		rect = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y)
 		self.mapfile.queryByRect(rect)
 		for x in range(self.mapfile.numlayers):
 			layer = self.mapfile.getLayer(x)
@@ -46,48 +46,38 @@ class MapServerRenderer(Renderer):
 				if(check_full):
 					result = layer.getResult(0)
 					shape = layer.getShape(result)
-					bbox_shape = mapscript.shapeObj_fromWKT(tiletree.bbox_to_wkt(min_x, min_y, max_x, max_y))
+					bbox_shape = mapscript.shapeObj_fromWKT(
+						tiletree.bbox_to_wkt(node.min_x, node.min_y, node.max_x, node.max_y))
 					if(shape.contains(bbox_shape)):
 						is_full=True
 						is_leaf=True
 						layer.close()
 						break
-					#geom = shapely.wkt.loads(shape.toWKT())
-					#bbox_geom = shapely.wkt.loads(tiletree.bbox_to_wkt(min_x, min_y, max_x, max_y))
-					#if(geom.contains(bbox_geom)):
-						#is_full=True
-						#is_leaf=True
-						#layer.close()
-						#break
 			layer.close()
 
 		self.mapfile.freeQuery()
 		return (is_blank, is_full, is_leaf)
 
-	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
-		self.mapfile.setExtent(min_x, min_y, max_x, max_y)
-		#self.mapfile.loadOWSParameters(self.build_request(min_x, min_x, max_x, max_y))
+	def render_normal(self, node):
+		self.mapfile.setExtent(node.min_x, node.min_y, node.max_x, node.max_y)
+		#self.mapfile.loadOWSParameters(self.build_request(node.min_x, node.min_x, node.max_x, node.max_y))
 		img = self.mapfile.draw()
 
-		img_id = build_node_id(zoom_level, tile_x, tile_y)
+		img_id = build_node_id(node.zoom_level, node.tile_x, node.tile_y)
 		result =  (img_id, StringIO.StringIO(img.getBytes()))
 
 		return result
 
-	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
-		if(is_blank):
+	def render(self, node):
+		if(node.is_blank):
 			if(self.blank_img_bytes == None):
-				self.blank_img_bytes = self.render_normal(geometry, is_blank, 
-					is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level,
-					tile_x, tile_y)[1]
+				self.blank_img_bytes = self.render_normal(node)[1]
 			return (self.blank_img_id, self.blank_img_bytes)
-		elif(is_full):
+		elif(node.is_full):
 			if(self.full_img_bytes == None):
-				self.full_img_bytes = self.render_normal(geometry, is_blank, 
-					is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level,
-					tile_x, tile_y)[1]
+				self.full_img_bytes = self.render_normal(node)[1]
 			return (self.full_img_id, self.full_img_bytes)
-		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y)
+		return self.render_normal(node)
 
 	def build_request(self, min_x, min_y, max_x, max_y):
 		wms_req = mapscript.OWSRequest()

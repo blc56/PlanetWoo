@@ -25,6 +25,18 @@ def bbox_to_wkt(min_x, min_y, max_x, max_y):
 		'max_y': max_y,
 	}
 
+#def bbox_to_tile_coord(z, min_x, min_y, map_extent):
+	##the size of each tile at zoom level z
+	#tile_dim = 2**z
+	#x_size = (map_extent[2] - map_extent[0]) / float(tile_dim)
+	#y_size = (map_extent[3] - map_extent[1]) / float(tile_dim)
+
+	#x = int(math.floor((min_x - map_extent[2]) / x_size))
+	#y = int(math.floor((min_y - map_extent[2]) / x_size))
+
+	#return (x, y)
+
+
 def tile_coord_to_bbox(z, x, y, extent):
 	#the size of each tile at zoom level z
 	tile_dim = 2**z
@@ -252,53 +264,53 @@ class NullRenderer:
 		return (self.blank_img_id, self.blank_img_bytes)
 
 	#\return (is_blank, is_full, is_leaf)
-	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level, check_full=True):
+	def tile_info(self, node, check_full=True):
 		is_blank = False
 		is_full = False
 		is_leaf = False
 		return (is_blank, is_full, is_leaf)
 
-	def render_normal(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level):
+	def render_normal(self, node):
 		return self.render_blank()
 
-	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
+	def render(self, node):
 		return (0, StringIO.StringIO('') )
 
 class Renderer(NullRenderer):
-	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
-		NullRenderer.__init__(self, img_w, img_h, img_prefix)
+	def __init__(self, img_w=256, img_h=256):
+		NullRenderer.__init__(self, img_w, img_h)
 
 	#\return (is_blank, is_full, is_leaf)
-	def tile_info(self, geometry, min_x, min_y, max_x, max_y, zoom_level, check_full=True):
+	def tile_info(self, node, check_full=True):
 		is_blank = False
 		is_full = False
 		is_leaf = False
 
-		if(geometry == None or (hasattr(geometry, 'is_empty') and geometry.is_empty)):
+		if(node.geom == None or (hasattr(node.geom, 'is_empty') and node.geom.is_empty)):
 			is_blank = True
 			is_leaf = True
 		elif(check_full):
 			bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
-				{'min_x': min_x, 'min_y': min_y, 'max_x': max_x, 'max_y': max_y})
-			if(type(geometry) == list):
-				for geom in geometry:
+				{'min_x': node.min_x, 'min_y': node.min_y, 'max_x': node.max_x, 'max_y': node.max_y})
+			if(type(node.geom) == list):
+				for geom in node.geom:
 					if(geom.contains(bbox)):
 						is_full = True
 						is_leaf = True
 						break
 			else:
-				if(geometry.contains(bbox)):
+				if(node.geom.contains(bbox)):
 					is_full = True
 					is_leaf = True
 
 		return (is_blank, is_full, is_leaf)
 
-	def render(self, geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y):
-		if(is_blank):
+	def render(self, node):
+		if(node.is_blank):
 			return self.render_blank()
-		elif(is_full):
+		elif(node.is_full):
 			return self.render_full()
-		return self.render_normal(geometry, is_blank, is_full, is_leaf, min_x, min_y, max_x, max_y, zoom_level, tile_x, tile_y)
+		return self.render_normal(node)
 
 class QuadTreeGenStats:
 	def __init__(self, start_zoom, stop_zoom):
@@ -398,16 +410,13 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, st
 	if(start_checks_zoom != None and node.zoom_level >= start_checks_zoom):
 		#is this node a leaf?
 		node.is_blank, node.is_full, node.is_leaf =\
-			renderer.tile_info(node.geom, node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level, check_full)
+			renderer.tile_info(node, check_full)
 
 	if(node.zoom_level >= stop_level):
 		node.is_leaf = True
 
 	#render this node
-	node.image_id, this_img_bytes =\
-		renderer.render(node.geom, node.is_blank, node.is_full, node.is_leaf,
-			node.min_x, node.min_y, node.max_x, node.max_y, node.zoom_level,
-			node.tile_x, node.tile_y)
+	node.image_id, this_img_bytes = renderer.render(node)
 
 	stats.track(node)
 	
