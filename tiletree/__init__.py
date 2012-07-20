@@ -36,6 +36,14 @@ def bbox_to_wkt(min_x, min_y, max_x, max_y):
 
 	#return (x, y)
 
+def geo_coord_to_img(x, y, img_w, img_h, min_x, min_y, max_x, max_y):
+	x_scale = img_w  / float(max_x - min_x)
+	y_scale = img_h / float(max_y - min_y)
+	x = x - min_x
+	y = max_y - y
+	
+	return (x * x_scale, y * y_scale)
+
 
 def tile_coord_to_bbox(z, x, y, extent):
 	#the size of each tile at zoom level z

@@ -10,6 +10,7 @@ import tiletree
 import tiletree.mapserver
 import tiletree.postgres
 import tiletree.composite
+import tiletree.label
 from scripts.render_to_csv import load_cutter
 
 class DynamicTileFetcher(tornado.web.RequestHandler):
@@ -29,6 +30,7 @@ class DynamicTileFetcher(tornado.web.RequestHandler):
 def load_config(config_path, conn_str):
 	config = json.loads(open(config_path, 'r').read())
 	render_infos = {}
+
 	for layer_name in config['layer_order']:
 		layer = config[layer_name]
 		cutter = load_cutter(layer)
@@ -38,8 +40,19 @@ def load_config(config_path, conn_str):
 		render_infos[layer_name] = tiletree.composite.RenderInfo(storage_manager, renderer, cutter,
 			layer.get('check_full', True), layer.get('start_zoom', None), layer.get('stop_zoom', None))
 
-	return (tiletree.composite.TileCompositor(render_infos, config['extent']),
-			config['layer_order'])
+	for layer_name in config['label_order']:
+		layer = config[layer_name]
+		cutter = load_cutter(layer)
+		feature_storage_manager = tiletree.postgres.PostgresStorageManager(conn_str, layer['tree_table'],
+			layer['image_table'])
+		renderer = tiletree.label.LabelRenderer(open(layer['mapfile'],'r').read(), feature_storage_manager)
+
+		render_infos['label_' + layer_name] = tiletree.composite.RenderInfo(None, renderer, cutter,
+			layer.get('check_full', True), layer.get('start_zoom', None), layer.get('stop_zoom', None))
+
+	layer_list = config['layer_order'] + ['label_' + x for x in config['label_order']]
+
+	return (tiletree.composite.TileCompositor(render_infos, config['extent']), layer_list)
 
 def main():
 	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")

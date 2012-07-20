@@ -8,6 +8,7 @@ import tiletree.mapserver
 import tiletree.shapefile
 import tiletree.postgres
 import tiletree.splitstorage
+import tiletree.label
 import StringIO
 import os.path
 
@@ -190,21 +191,31 @@ def postgres_csv_load_test():
 	storage_manager.recreate_tables()
 	storage_manager.copy(open('mapserver_tree.csv','r'),open('mapserver_images.csv','r'))
 
+def label_render_test():
+	print "Label render test"
+	feature_storage_manager = tiletree.postgres.PostgresStorageManager('dbname=planetwoo user=planetwoo', 'tile_csv_nodes', 'tile_csv_images')
+	storage_manager = tiletree.fsstorage.FSStorageManager(image_prefix='test_images/')
+	#storage_manager = tiletree.NullStorageManager()
+	min_x, min_y, max_x, max_y = (-19338083.638408754, 804303.8439259261, -2215605.96243665, 17926781.51989803)
+	renderer = tiletree.label.LabelRenderer(open('default.map','r').read(), feature_storage_manager)
+	tiletree.generate(min_x, min_y, max_x, max_y, storage_manager, renderer, tiletree.NullGeomCutter(), stop_level=3)
+
 def main():
-	null_test()
-	null_fs_tree_test()
-	null_csv_tree_test()
-	shapefile_cutter_test()
-	#maptree_cutter_test()
-	mapserver_render_test()
-	postgres_test()
-	#geom_builder_csv_test()
-	#geom_builder_shapefile_test()
-	#individual_geom_builder_shapefile_test()
-	meta_tile_mapserver_test()
-	mapserver_mt_test()
-	meta_mapserver_mt_test()
-	postgres_csv_load_test()
+	#null_test()
+	#null_fs_tree_test()
+	#null_csv_tree_test()
+	#shapefile_cutter_test()
+	##maptree_cutter_test()
+	#mapserver_render_test()
+	#postgres_test()
+	##geom_builder_csv_test()
+	##geom_builder_shapefile_test()
+	##individual_geom_builder_shapefile_test()
+	#meta_tile_mapserver_test()
+	#mapserver_mt_test()
+	#meta_mapserver_mt_test()
+	#postgres_csv_load_test()
+	label_render_test()
 
 if( __name__ == '__main__'):
 	main()
