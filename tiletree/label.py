@@ -33,12 +33,10 @@ def position_label(shape, node, img_w, img_h, label_spacing, label_width, label_
 	y_spaces = math.floor((node.max_y - seed_point.y)/float(y_repeat_interval) + .5)
 
 	ghost_x = seed_point.x + x_spaces * x_repeat_interval
-	ghost_max_y = seed_point.y + y_spaces * y_repeat_interval
-	ghost_max_x = ghost_x + label_width
-	ghost_y = ghost_max_y - label_width
+	ghost_y = seed_point.y + y_spaces * y_repeat_interval
 
 	label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
-			ghost_max_x + label_geo_w, ghost_max_y + label_geo_h) 
+			ghost_x + label_geo_w, ghost_y + label_geo_h) 
 	if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
 		label_geo_bbox_shape = mapscript.shapeObj.fromWKT(tiletree.bbox_to_wkt(*label_geo_bbox))
 		if(shape.contains(label_geo_bbox_shape) ):
@@ -106,7 +104,6 @@ class LabelRenderer:
 			for f in range(num_results):
 				result = layer.getResult(f)
 				shape = layer.getShape(result)
-				seed_point = shape.getCentroid()
 				label_text = shape.getValue(self.label_col_index)
 				context, label_width, label_height = self.get_label_size(surface, label_text)
 				label_extent = position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
@@ -119,7 +116,7 @@ class LabelRenderer:
 				img_max_x, img_max_y = tiletree.geo_coord_to_img(label_extent[2], label_extent[3],
 						self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
 
-				#TODO: real label rendering
+				#TODO: add fontconfig with zoom level range and other options
 				self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y)
 
 			layer.close()
