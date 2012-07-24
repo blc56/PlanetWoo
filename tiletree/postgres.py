@@ -92,17 +92,26 @@ img_bytes BYTEA
 	def fetch_info(self, zoom_level, x, y):
 		#first, try to find the tile at this zoom level
 		#if we don't then that means somewhere above us in the tree is a leaf node
-		#find that leaf node and return its image
 		curs = self.conn.cursor()
-		node_id = tiletree.build_node_id(zoom_level, x, y)
-		curs.execute(\
-"""
-SELECT nodes.is_leaf, nodes.is_full, nodes.is_blank
-FROM %s nodes
-WHERE nodes.node_id = %%s
-""" % (self.node_table,), (node_id,) )
-		result = curs.fetchone()
-		return result
+
+		for z in range(zoom_level, -1, -1):
+			node_id = tiletree.build_node_id(zoom_level, x, y)
+			curs.execute(\
+	"""
+	SELECT nodes.is_blank, nodes.is_full, nodes.is_leaf
+	FROM %s nodes
+	WHERE nodes.node_id = %%s
+	""" % (self.node_table,), (node_id,) )
+			result = curs.fetchone()
+			if(result):
+				if(z != zoom_level and not result[0]):
+					raise tiletree.TileNotFoundException()
+				return result
+
+			x = int(math.floor(x/2.0))
+			y = int(math.floor(y/2.0))
+
+		raise tiletree.TileNotFoundException()
 
 	def fetch(self, zoom_level, x, y):
 		#first, try to find the tile at this zoom level
@@ -161,6 +170,9 @@ INSERT INTO %s VALUES(%%(node_id)s, %%(zoom_level)s, %%(tile_x)s,
 	def store(self, node, img_bytes):
 		self.store_node(node)
 		self.store_image(node, img_bytes)
+		self.conn.commit()
+
+	def flush(self):
 		self.conn.commit()
 
 	def close(self):

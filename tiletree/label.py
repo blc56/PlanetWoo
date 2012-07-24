@@ -45,7 +45,8 @@ def position_label(shape, node, img_w, img_h, label_spacing, label_width, label_
 
 class LabelRenderer:
 	def __init__(self, mapfile_string, feature_storage_manager, label_col_index, map_extent,
-		label_spacing=1024, img_w=256, img_h=256, tile_buffer=256, font='Utopia', font_size=12):
+			min_zoom=0, max_zoom=19,
+			label_spacing=1024, img_w=256, img_h=256, tile_buffer=256, font='Utopia', font_size=12):
 		self.mapfile = mapscript.fromstring(mapfile_string)
 		self.feature_storage_manager = feature_storage_manager
 		self.label_col_index = label_col_index
@@ -56,9 +57,10 @@ class LabelRenderer:
 		self.tile_buffer = tile_buffer
 		self.font = font
 		self.font_size = font_size
+		self.min_zoom = min_zoom
+		self.max_zoom = max_zoom
 
 	def tile_info(self, node, check_full=True):
-		#return self.feature_storage_manager.fetch_info(node.zoom_level, node.tile_x, node.tile_y)
 		return (False, False, False)
 
 	def render_label(self, context, label_text, img_x, img_y, img_max_x, img_max_y):
@@ -84,7 +86,14 @@ class LabelRenderer:
 		text_extents = context.text_extents(label_text)
 		return (context, text_extents[2], text_extents[3])
 
+	def build_image(self, surface, node):
+		img_bytes = StringIO.StringIO()
+		img_id = tiletree.build_node_id(node.zoom_level, node.tile_x, node.tile_y)
+		surface.write_to_png(img_bytes)
+		return (img_id, img_bytes)
+
 	def render(self, node):
+		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 		#convert from a pixel buffer distance to an image buffer distance
 		x_scale = (node.max_x - node.min_x) / float(self.img_w) 
 		y_scale = (node.max_y - node.min_y) / float(self.img_h)
@@ -95,7 +104,6 @@ class LabelRenderer:
 				node.max_x + x_buffer, node.max_y + y_buffer)
 
 		self.mapfile.queryByRect(rect)
-		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 
 		for x in range(self.mapfile.numlayers):
 			layer = self.mapfile.getLayer(x)
@@ -104,7 +112,7 @@ class LabelRenderer:
 			for f in range(num_results):
 				result = layer.getResult(f)
 				shape = layer.getShape(result)
-				label_text = shape.getValue(self.label_col_index)
+				label_text = unicode(shape.getValue(self.label_col_index), 'latin_1')
 				context, label_width, label_height = self.get_label_size(surface, label_text)
 				label_extent = position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
 						label_width, label_height)
@@ -123,8 +131,5 @@ class LabelRenderer:
 
 		self.mapfile.freeQuery()
 
-		img_bytes = StringIO.StringIO()
-		img_id = tiletree.build_node_id(node.zoom_level, node.tile_x, node.tile_y)
-		surface.write_to_png(img_bytes)
-		return (img_id, img_bytes)
+		return self.build_image(surface, node)
 

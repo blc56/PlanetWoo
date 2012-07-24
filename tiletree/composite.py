@@ -30,24 +30,27 @@ class TileCompositor:
 		return self.fetch_helper(tile_generator)
 
 	def fetch_render(self, zoom_level, x, y, render_info, extent):
-			if((render_info.start_zoom != None and render_info.start_zoom > zoom_level) or
-					(render_info.stop_zoom != None and render_info.stop_zoom < zoom_level) ):
-				return None
-			storage_manager = render_info.storage_manager
-			renderer = render_info.renderer
-			cutter = render_info.cutter
-		#try:
-			#return storage_manager.fetch(zoom_level, x, y)
-		#except tiletree.TileNotFoundException:
+		if((render_info.start_zoom != None and render_info.start_zoom > zoom_level) or
+				(render_info.stop_zoom != None and render_info.stop_zoom < zoom_level) ):
+			return None
+		storage_manager = render_info.storage_manager
+		renderer = render_info.renderer
+		cutter = render_info.cutter
+		try:
+			return storage_manager.fetch(zoom_level, x, y)
+		except tiletree.TileNotFoundException:
 			bbox = tiletree.tile_coord_to_bbox(zoom_level, x, y, extent)
 			geom = cutter.cut(bbox[0], bbox[1], bbox[2], bbox[3])
 			node = tiletree.QuadTreeGenNode(geom, bbox[0], bbox[1], bbox[2], bbox[3], zoom_level, None,
 				False, False, False, None, x, y)
 			is_blank, is_full, is_leaf = renderer.tile_info(node, check_full=render_info.check_full)
-
+			node.is_blank = is_blank
+			node.is_full = is_full
+			node.is_leaf = is_leaf
 			img_bytes = renderer.render(node)[1]
-			#storage_manager.store_node(node)
-			#storage_manager.store_image(node, img_bytes)
+			storage_manager.store_node(node)
+			storage_manager.store_image(node, img_bytes)
+			storage_manager.flush()
 			return StringIO.StringIO(img_bytes.getvalue())
 
 	def fetch_helper(self, tile_generator):
