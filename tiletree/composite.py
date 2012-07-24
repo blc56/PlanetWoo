@@ -4,13 +4,15 @@ import StringIO
 import tiletree
 
 class RenderInfo:
-	def __init__(self, storage_manager, renderer, cutter, check_full, start_zoom=None, stop_zoom=None):
+	def __init__(self, storage_manager, renderer, cutter, check_full, start_zoom=None,
+			stop_zoom=None, label_col_index=None):
 		self.storage_manager = storage_manager
 		self.renderer = renderer
 		self.cutter = cutter
 		self.check_full = check_full
 		self.start_zoom = start_zoom
 		self.stop_zoom = stop_zoom
+		self.label_col_index = label_col_index
 
 class TileCompositor:
 	def __init__(self, render_info_dict, extent=(0, 0, 0, 0)):

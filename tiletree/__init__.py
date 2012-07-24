@@ -12,6 +12,7 @@ import shapely.speedups
 import multiprocessing
 import sys
 import types
+import math
 
 #if(shapely.speedups.available):
 	#shapely.speedups.enable()
@@ -25,17 +26,6 @@ def bbox_to_wkt(min_x, min_y, max_x, max_y):
 		'max_y': max_y,
 	}
 
-#def bbox_to_tile_coord(z, min_x, min_y, map_extent):
-	##the size of each tile at zoom level z
-	#tile_dim = 2**z
-	#x_size = (map_extent[2] - map_extent[0]) / float(tile_dim)
-	#y_size = (map_extent[3] - map_extent[1]) / float(tile_dim)
-
-	#x = int(math.floor((min_x - map_extent[2]) / x_size))
-	#y = int(math.floor((min_y - map_extent[2]) / x_size))
-
-	#return (x, y)
-
 def geo_coord_to_img(x, y, img_w, img_h, min_x, min_y, max_x, max_y):
 	x_scale = img_w  / float(max_x - min_x)
 	y_scale = img_h / float(max_y - min_y)
@@ -43,7 +33,6 @@ def geo_coord_to_img(x, y, img_w, img_h, min_x, min_y, max_x, max_y):
 	y = max_y - y
 	
 	return (x * x_scale, y * y_scale)
-
 
 def tile_coord_to_bbox(z, x, y, extent):
 	#the size of each tile at zoom level z
