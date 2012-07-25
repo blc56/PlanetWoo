@@ -3,6 +3,7 @@ import StringIO
 import mapscript
 import cairo
 import math
+import sys
 
 import tiletree
 
@@ -14,11 +15,20 @@ def bbox_check(label_bbox, tile_bbox):
 		return True
 	return False
 
+class LabelClass:
+	def __init__(self, font='Utopia', font_size=18, mapserver_query="(1==1)", font_color=(0, 0, 0, 1),
+			min_scale_denom=0, max_scale_denom=sys.maxint):
+		self.font = font
+		self.font_size = font_size
+		self.mapserver_query = mapserver_query
+		self.font_color = font_color
+		self.max_scale_denom = max_scale_denom
+		self.min_scale_denom = min_scale_denom
+
 class LabelRenderer:
 	def __init__(self, mapfile_string, feature_storage_manager, label_col_index, map_extent,
-			min_zoom=0, max_zoom=19,
-			label_spacing=1024, img_w=256, img_h=256, tile_buffer=256, font='Utopia', font_size=12,
-			point_labels=True):
+			min_zoom=0, max_zoom=19, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
+			point_labels=False, point_buffer=4):
 		self.mapfile = mapscript.fromstring(mapfile_string)
 		self.feature_storage_manager = feature_storage_manager
 		self.label_col_index = label_col_index
@@ -27,36 +37,34 @@ class LabelRenderer:
 		self.img_w = img_w
 		self.img_h = img_h
 		self.tile_buffer = tile_buffer
-		self.font = font
-		self.font_size = font_size
 		self.min_zoom = min_zoom
 		self.max_zoom = max_zoom
 		self.point_labels = point_labels
+		self.point_buffer = point_buffer
 
 	def tile_info(self, node, check_full=True):
 		return (False, False, False)
 
-	def render_label(self, context, label_text, img_x, img_y, img_max_x, img_max_y, color):
+	def render_label(self, context, label_text, img_x, img_y, img_max_x, img_max_y, label_class):
 		context.move_to(img_x, img_y)
 		context.text_path(label_text)
 		context.fill()
 
+		#TODO: XXX BLC testing
 		context.set_line_width(2)
-		#context.new_path()
 		context.move_to(img_x, img_y)
 		context.line_to(img_max_x, img_y)
 		context.line_to(img_max_x, img_max_y)
 		context.line_to(img_x, img_max_y)
 		context.line_to(img_x, img_y)
-		#context.set_source_rgba(1, 0, 0, .5)
-		context.set_source_rgba(*color)
+		context.set_source_rgba(*label_class.font_color)
 		context.stroke()
 
-	def get_label_size(self, surface, label_text):
+	def get_label_size(self, surface, label_text, label_class):
 		context = cairo.Context(surface)
-		font_face = context.select_font_face(self.font, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+		font_face = context.select_font_face(label_class.font, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
 		context.set_font_face(font_face)
-		context.set_font_size(self.font_size)
+		context.set_font_size(label_class.font_size)
 		text_extents = context.text_extents(label_text)
 		return (context, text_extents[2], text_extents[3])
 
@@ -82,11 +90,20 @@ class LabelRenderer:
 		x_spaces = math.floor((node.max_x - seed_point.x)/float(x_repeat_interval) + .5)
 		y_spaces = math.floor((node.max_y - seed_point.y)/float(y_repeat_interval) + .5)
 
+		#don't do repeats for point labels
+		if(self.point_labels and (x_spaces > 0 or y_spaces > 0)):
+			return None
+
 		ghost_x = seed_point.x + x_spaces * x_repeat_interval
 		ghost_y = seed_point.y + y_spaces * y_repeat_interval
 
-		label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
-				ghost_x + label_geo_w, ghost_y + label_geo_h) 
+		if(not self.point_labels):
+			label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
+					ghost_x + label_geo_w, ghost_y + label_geo_h) 
+		else:
+			#if this is a point label, put the text to the right of the point
+			label_geo_bbox = (ghost_x + (self.point_buffer * x_scale), ghost_y - label_geo_h,
+					ghost_x + label_geo_w * 2, ghost_y + label_geo_h) 
 
 		is_in_tile = False
 		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
@@ -105,19 +122,14 @@ class LabelRenderer:
 				return True
 		return False
 
-	def render(self, node):
-		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
-		#convert from a pixel buffer distance to an image buffer distance
-		x_scale = (node.max_x - node.min_x) / float(self.img_w) 
-		y_scale = (node.max_y - node.min_y) / float(self.img_h)
-		x_buffer = x_scale * self.tile_buffer
-		y_buffer = y_scale * self.tile_buffer
-
-		label_bboxes = []
-
-		rect = mapscript.rectObj(node.min_x - x_buffer, node.min_y - y_buffer,
-				node.max_x + x_buffer, node.max_y + y_buffer)
-		self.mapfile.queryByRect(rect)
+	def render_class(self, node, scale_denom, layer, surface, label_class, label_bboxes):
+		#check for the scale
+		if(scale_denom > label_class.max_scale_denom or
+				scale_denom < label_class.min_scale_denom):
+			return
+		if(label_class.mapserver_query == None):
+			label_class.mapserver_query = "(1 == 1)"
+		layer.queryByAttributes(self.mapfile, '', label_class.mapserver_query, mapscript.MS_MULTIPLE)
 
 		for x in range(self.mapfile.numlayers):
 			layer = self.mapfile.getLayer(x)
@@ -127,7 +139,7 @@ class LabelRenderer:
 				result = layer.getResult(f)
 				shape = layer.getShape(result)
 				label_text = unicode(shape.getValue(self.label_col_index), 'latin_1')
-				context, label_width, label_height = self.get_label_size(surface, label_text)
+				context, label_width, label_height = self.get_label_size(surface, label_text, label_class)
 
 				pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
 						label_width, label_height)
@@ -152,11 +164,40 @@ class LabelRenderer:
 						self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
 
 				#TODO: add fontconfig with zoom level range and other options
-				self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, color)
+				label_class.font_color = color
+				self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
 
 			layer.close()
 
 		self.mapfile.freeQuery()
+
+	def render(self, node):
+		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
+		#convert from a pixel buffer distance to an image buffer distance
+		x_scale = (node.max_x - node.min_x) / float(self.img_w) 
+		y_scale = (node.max_y - node.min_y) / float(self.img_h)
+		x_buffer = x_scale * self.tile_buffer
+		y_buffer = y_scale * self.tile_buffer
+
+		label_bboxes = []
+
+		#hack to get the correct scale
+		self.mapfile.setExtent(node.min_x , node.min_y, node.max_x, node.max_y)
+		scale_denom = self.mapfile.scaledenom
+		self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
+				node.max_x + x_buffer, node.max_y + y_buffer)
+
+		for layer_iter in range(self.mapfile.numlayers):
+			layer = self.mapfile.getLayer(layer_iter)
+			for class_iter in range(layer.numclasses):
+				mapclass = layer.getClass(class_iter)
+				label_class = LabelClass()
+				label_class.mapserver_query = mapclass.getExpressionString()
+				if(mapclass.minscaledenom > 0):
+					label_class.min_scale_denom = mapclass.minscaledenom
+				if(mapclass.maxscaledenom > 0):
+					label_class.max_scale_denom = mapclass.maxscaledenom
+				self.render_class(node, scale_denom, layer, surface, label_class, label_bboxes)
 
 		return self.build_image(surface, node)
 

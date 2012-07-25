@@ -51,7 +51,7 @@ def load_config(config_path, conn_str):
 		label_storage_manager = tiletree.postgres.PostgresStorageManager(conn_str, 'label_' + layer['tree_table'],
 			'label_' + layer['image_table'])
 		renderer = tiletree.label.LabelRenderer(open(layer['mapfile'],'r').read(), feature_storage_manager,
-			layer.get('label_col_index', None), config['extent'])
+			layer.get('label_col_index', None), config['extent'], point_labels=layer.get('point_labels', False))
 
 		render_infos['label_' + layer_name] = tiletree.composite.RenderInfo(label_storage_manager, renderer, cutter,
 			layer.get('check_full', True), layer.get('start_zoom', None), layer.get('stop_zoom', None))
