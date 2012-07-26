@@ -4,6 +4,7 @@ import mapscript
 import cairo
 import math
 import sys
+import shapely
 
 import tiletree
 
@@ -16,7 +17,7 @@ def bbox_check(label_bbox, tile_bbox):
 	return False
 
 class LabelClass:
-	def __init__(self, font='Utopia', font_size=18, mapserver_query="(1==1)", font_color=(0, 0, 0, 1),
+	def __init__(self, font='Utopia', font_size=12, mapserver_query="(1==1)", font_color=(0, 0, 0, 1),
 			min_scale_denom=0, max_scale_denom=sys.maxint):
 		self.font = font
 		self.font_size = font_size
@@ -66,7 +67,8 @@ class LabelRenderer:
 		context.set_font_face(font_face)
 		context.set_font_size(label_class.font_size)
 		text_extents = context.text_extents(label_text)
-		return (context, text_extents[2], text_extents[3])
+		width, height = text_extents[2], text_extents[3]
+		return (context, width, height, label_text)
 
 	def build_image(self, surface, node):
 		img_bytes = StringIO.StringIO()
@@ -76,7 +78,32 @@ class LabelRenderer:
 
 	#returns (is_in_tile, bbox)
 	def position_label(self, shape, node, img_w, img_h, label_spacing, label_width, label_height):
+		if(self.point_labels):
+			return self.position_point_label(shape, node, img_w, img_h, label_spacing, label_width, label_height)
+		return self.position_poly_label(shape, node, img_w, img_h, label_spacing, label_width, label_height)
+
+	def position_point_label(self, shape, node, img_w, img_h, label_spacing, label_width, label_height):
 		seed_point = shape.getCentroid()
+
+		x_scale = (node.max_x - node.min_x) / float(img_w)
+		y_scale = (node.max_y - node.min_y) / float(img_h)
+		label_geo_w = label_width * x_scale * .5
+		label_geo_h = label_height * y_scale * .5
+
+		#put the text to the right of the point
+		label_geo_bbox = (seed_point.x + (self.point_buffer * x_scale), seed_point.y - label_geo_h,
+				seed_point.x + label_geo_w * 2, seed_point.y + label_geo_h) 
+
+		is_in_tile = False
+		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
+			is_in_tile = True
+
+		return (is_in_tile, label_geo_bbox)
+
+	def position_poly_label(self, shape, node, img_w, img_h, label_spacing, label_width, label_height):
+		seed_point = shape.getCentroid()
+		#geom = shapely.wkt.loads(shape.toWKT())
+		#seed_point = geom.representative_point()
 
 		x_scale = (node.max_x - node.min_x) / float(img_w)
 		y_scale = (node.max_y - node.min_y) / float(img_h)
@@ -87,8 +114,8 @@ class LabelRenderer:
 
 		x_mid = (node.max_x - node.min_x) / 2.0
 		y_mid = (node.max_y - node.min_y) / 2.0
-		x_spaces = math.floor((node.max_x - seed_point.x)/float(x_repeat_interval) + .5)
-		y_spaces = math.floor((node.max_y - seed_point.y)/float(y_repeat_interval) + .5)
+		x_spaces = math.floor((x_mid - seed_point.x)/float(x_repeat_interval) + .5)
+		y_spaces = math.floor((y_mid - seed_point.y)/float(y_repeat_interval) + .5)
 
 		#don't do repeats for point labels
 		if(self.point_labels and (x_spaces > 0 or y_spaces > 0)):
@@ -97,22 +124,15 @@ class LabelRenderer:
 		ghost_x = seed_point.x + x_spaces * x_repeat_interval
 		ghost_y = seed_point.y + y_spaces * y_repeat_interval
 
-		if(not self.point_labels):
-			label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
-					ghost_x + label_geo_w, ghost_y + label_geo_h) 
-		else:
-			#if this is a point label, put the text to the right of the point
-			label_geo_bbox = (ghost_x + (self.point_buffer * x_scale), ghost_y - label_geo_h,
-					ghost_x + label_geo_w * 2, ghost_y + label_geo_h) 
+		label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
+				ghost_x + label_geo_w, ghost_y + label_geo_h) 
 
 		is_in_tile = False
 		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
 			is_in_tile = True
 
 		label_geo_bbox_shape = mapscript.shapeObj.fromWKT(tiletree.bbox_to_wkt(*label_geo_bbox))
-		if(self.point_labels and (x_spaces < 1 and y_spaces < 1) ):
-			return (is_in_tile, label_geo_bbox)
-		elif(shape.contains(label_geo_bbox_shape) ):
+		if(shape.contains(label_geo_bbox_shape) ):
 			return (is_in_tile, label_geo_bbox)
 		return None
 
@@ -139,7 +159,8 @@ class LabelRenderer:
 				result = layer.getResult(f)
 				shape = layer.getShape(result)
 				label_text = unicode(shape.getValue(self.label_col_index), 'latin_1')
-				context, label_width, label_height = self.get_label_size(surface, label_text, label_class)
+				context, label_width, label_height, label_text =\
+					self.get_label_size(surface, label_text, label_class)
 
 				pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
 						label_width, label_height)
