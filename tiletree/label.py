@@ -150,11 +150,17 @@ class LabelRenderer:
 			if(not label_line):
 				continue
 
-			if(label_line.getLength() >= (label_geo_w * 2)):
-				ghost_x = label_line.getCentroid().x
-				ghost_y = y_pos
-				good_position = True
-				break
+			for line_iter in range(label_line.numlines):
+				line = label_line.get(line_iter)
+				if(line.numpoints != 2):
+					continue
+				min_x = min(line.get(0).x, line.get(1).x)
+				max_x = max(line.get(0).x, line.get(1).x)
+				if((max_x - min_x) >= (label_geo_w * 2)):
+					ghost_x = (max_x + min_x) / 2.0
+					ghost_y = y_pos
+					good_position = True
+					break
 
 			#calculate the next y position to try
 			if(attempt_iter % 2 == 0):
@@ -200,7 +206,7 @@ class LabelRenderer:
 				context, label_width, label_height, label_text =\
 					self.get_label_size(surface, label_text, label_class)
 
-				#if(label_text != 'North Dakota'):
+				#if(label_text != 'Maryland'):
 					#continue
 				#print label_text
 
@@ -247,8 +253,9 @@ class LabelRenderer:
 		#hack to get the correct scale
 		self.mapfile.setExtent(node.min_x , node.min_y, node.max_x, node.max_y)
 		scale_denom = self.mapfile.scaledenom
-		self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
-				node.max_x + x_buffer, node.max_y + y_buffer)
+		if(self.point_labels):
+			self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
+					node.max_x + x_buffer, node.max_y + y_buffer)
 
 		for layer_iter in range(self.mapfile.numlayers):
 			layer = self.mapfile.getLayer(layer_iter)
