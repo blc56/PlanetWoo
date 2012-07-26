@@ -29,7 +29,7 @@ class LabelClass:
 class LabelRenderer:
 	def __init__(self, mapfile_string, feature_storage_manager, label_col_index, map_extent,
 			min_zoom=0, max_zoom=19, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
-			point_labels=False, point_buffer=4):
+			point_labels=False, point_buffer=4, position_attempts=4):
 		self.mapfile = mapscript.fromstring(mapfile_string)
 		self.feature_storage_manager = feature_storage_manager
 		self.label_col_index = label_col_index
@@ -42,6 +42,10 @@ class LabelRenderer:
 		self.max_zoom = max_zoom
 		self.point_labels = point_labels
 		self.point_buffer = point_buffer
+		self.position_attempts = position_attempts
+		self.label_adjustment_max = (self.label_spacing / 2.0) - max(self.img_w, self.img_h)
+		if(self.label_adjustment_max < 0):
+			raise Exception("Bad parameters")
 
 	def tile_info(self, node, check_full=True):
 		return (False, False, False)
@@ -100,29 +104,66 @@ class LabelRenderer:
 
 		return (is_in_tile, label_geo_bbox)
 
-	def position_poly_label(self, shape, node, img_w, img_h, label_spacing, label_width, label_height):
+	def find_poly_label_ghost(self, shape, node, x_repeat_interval, y_repeat_interval):
 		seed_point = shape.getCentroid()
-		#geom = shapely.wkt.loads(shape.toWKT())
-		#seed_point = geom.representative_point()
-
-		x_scale = (node.max_x - node.min_x) / float(img_w)
-		y_scale = (node.max_y - node.min_y) / float(img_h)
-		x_repeat_interval = label_spacing * x_scale
-		y_repeat_interval = label_spacing * y_scale
-		label_geo_w = label_width * x_scale * .5
-		label_geo_h = label_height * y_scale * .5
-
-		x_mid = (node.max_x - node.min_x) / 2.0
-		y_mid = (node.max_y - node.min_y) / 2.0
+		x_mid = (node.max_x + node.min_x) / 2.0
+		y_mid = (node.max_y + node.min_y) / 2.0
 		x_spaces = math.floor((x_mid - seed_point.x)/float(x_repeat_interval) + .5)
 		y_spaces = math.floor((y_mid - seed_point.y)/float(y_repeat_interval) + .5)
 
-		#don't do repeats for point labels
-		if(self.point_labels and (x_spaces > 0 or y_spaces > 0)):
-			return None
-
 		ghost_x = seed_point.x + x_spaces * x_repeat_interval
 		ghost_y = seed_point.y + y_spaces * y_repeat_interval
+
+		return ghost_x, ghost_y
+
+	def build_label_line(self, y_pos, min_x, max_x):
+		wkt = 'MULTILINESTRING((%(min_x)s %(y_pos)s, %(max_x)s %(y_pos)s))'
+		return mapscript.shapeObj.fromWKT(wkt % {'min_x':min_x, 'max_x':max_x, 'y_pos':y_pos})
+
+	def position_poly_label(self, shape, node, img_w, img_h, label_spacing, label_width, label_height):
+		x_scale = (node.max_x - node.min_x) / float(img_w)
+		y_scale = (node.max_y - node.min_y) / float(img_h)
+		label_geo_w = label_width * x_scale * .5
+		label_geo_h = label_height * y_scale * .5
+		x_repeat_interval = label_spacing * x_scale
+		y_repeat_interval = label_spacing * y_scale
+
+		#this crashes :(
+		#shape = shape.simplify(min(x_scale, y_scale))
+
+		ghost_x, ghost_y  = self.find_poly_label_ghost(shape, node, x_repeat_interval,  y_repeat_interval)
+		min_label_x = ghost_x - (x_scale * self.label_adjustment_max)
+		max_label_x = ghost_x + (x_scale * self.label_adjustment_max)
+
+		y_pos = ghost_y
+		good_position = False
+		position_interval = min(shape.bounds.maxy, ghost_y + self.label_adjustment_max) -\
+			max(shape.bounds.miny, ghost_y - self.label_adjustment_max)
+		position_interval /= float(self.position_attempts)
+		#keep trying y positions until we find one that works
+		for attempt_iter in range(self.position_attempts):
+			#for this  y position, use a horizontal line to 
+			#try and position the label
+
+			label_line = self.build_label_line(y_pos, min_label_x, max_label_x)
+			label_line = label_line.intersection(shape)
+			if(not label_line):
+				continue
+
+			if(label_line.getLength() >= (label_geo_w * 2)):
+				ghost_x = label_line.getCentroid().x
+				ghost_y = y_pos
+				good_position = True
+				break
+
+			#calculate the next y position to try
+			if(attempt_iter % 2 == 0):
+				y_pos = ghost_y - (position_interval * attempt_iter / 2)
+			else:
+				y_pos = ghost_y + (position_interval * attempt_iter / 2)
+
+		if(not good_position):
+			return None
 
 		label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
 				ghost_x + label_geo_w, ghost_y + label_geo_h) 
@@ -131,10 +172,7 @@ class LabelRenderer:
 		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
 			is_in_tile = True
 
-		label_geo_bbox_shape = mapscript.shapeObj.fromWKT(tiletree.bbox_to_wkt(*label_geo_bbox))
-		if(shape.contains(label_geo_bbox_shape) ):
-			return (is_in_tile, label_geo_bbox)
-		return None
+		return (is_in_tile, label_geo_bbox)
 
 	def collision_check(self, node, check_bbox, label_bboxes):
 		for l in label_bboxes:
@@ -161,6 +199,10 @@ class LabelRenderer:
 				label_text = unicode(shape.getValue(self.label_col_index), 'latin_1')
 				context, label_width, label_height, label_text =\
 					self.get_label_size(surface, label_text, label_class)
+
+				#if(label_text != 'North Dakota'):
+					#continue
+				#print label_text
 
 				pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
 						label_width, label_height)
