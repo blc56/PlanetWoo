@@ -6,12 +6,14 @@ import shapely.geometry
 import time
 import mapscript
 import tiletree
+import Image
 
 class MapServerRenderer(Renderer):
-	def __init__(self, mapfile_template, layers, img_w=256, img_h=256):
+	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0):
 		Renderer.__init__(self, img_w, img_h)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
+		self.img_buffer=img_buffer
 
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
@@ -58,13 +60,26 @@ class MapServerRenderer(Renderer):
 		self.mapfile.freeQuery()
 		return (is_blank, is_full, is_leaf)
 
+	def cut_img_buffer(self, img_bytes):
+		#TODO:XXX: fix this function
+		if(self.img_buffer == 0):
+			return img_bytes
+		buffer_img = Image.open(img_bytes)
+		cut_img = buffer_img.crop( (self.img_buffer, self.img_buffer,
+				self.img_w + self.img_buffer, self.img_h + self.img_buffer) )
+		cut_img.load()
+		cut_bytes = StringIO.StringIO()
+		cut_img.save(cut_bytes, 'png')
+		return cut_bytes
+
 	def render_normal(self, node):
 		self.mapfile.setExtent(node.min_x, node.min_y, node.max_x, node.max_y)
 		#self.mapfile.loadOWSParameters(self.build_request(node.min_x, node.min_x, node.max_x, node.max_y))
 		img = self.mapfile.draw()
 
 		img_id = build_node_id(node.zoom_level, node.tile_x, node.tile_y)
-		result =  (img_id, StringIO.StringIO(img.getBytes()))
+		img_bytes = self.cut_img_buffer(StringIO.StringIO(img.getBytes()))
+		result =  (img_id, img_bytes)
 
 		return result
 
@@ -84,8 +99,8 @@ class MapServerRenderer(Renderer):
 		wms_req.setParameter('MODE', 'tile')
 		wms_req.setParameter('VERSION', '1.1.1')
 		wms_req.setParameter('FORMAT', 'image/png')
-		wms_req.setParameter('WIDTH', str(self.img_w))
-		wms_req.setParameter('HEIGHT', str(self.img_h))
+		wms_req.setParameter('WIDTH', str(self.img_w + self.img_buffer*2))
+		wms_req.setParameter('HEIGHT', str(self.img_h + self.img_buffer*2))
 		wms_req.setParameter('SRS', 'EPSG:3857')
 		#TODO make this configurable
 		#wms_req.setParameter('SRS', 'EPSG:4326')

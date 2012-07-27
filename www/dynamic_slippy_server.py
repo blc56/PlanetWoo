@@ -34,7 +34,8 @@ def load_config(config_path, conn_str):
 	for layer_name in config['layer_order']:
 		layer = config[layer_name]
 		cutter = load_cutter(layer)
-		renderer = tiletree.mapserver.MapServerRenderer(open(layer['mapfile'],'r').read(), layer['layers'])
+		renderer = tiletree.mapserver.MapServerRenderer(open(layer['mapfile'],'r').read(), layer['layers'],
+			img_buffer=layer.get('img_buffer', 0))
 		storage_manager = tiletree.postgres.PostgresStorageManager(conn_str, layer['tree_table'],
 			layer['image_table'])
 		render_infos[layer_name] = tiletree.composite.RenderInfo(storage_manager, renderer, cutter,

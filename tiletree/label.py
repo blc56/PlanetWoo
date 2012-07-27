@@ -130,6 +130,10 @@ class LabelRenderer:
 
 		#this crashes :(
 		#shape = shape.simplify(min(x_scale, y_scale))
+		tile_shape = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y).toPolygon()
+		#shape = shape.intersection(tile_shape)
+		#if(shape == None):
+			#return None
 
 		ghost_x, ghost_y  = self.find_poly_label_ghost(shape, node, x_repeat_interval,  y_repeat_interval)
 		min_label_x = ghost_x - (x_scale * self.label_adjustment_max)
@@ -206,9 +210,12 @@ class LabelRenderer:
 				context, label_width, label_height, label_text =\
 					self.get_label_size(surface, label_text, label_class)
 
+				#weed out some false positives
+				if(not self.mapfile.extent.toPolygon().intersects(shape)):
+					continue
+
 				#if(label_text != 'Maryland'):
 					#continue
-				#print label_text
 
 				pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
 						label_width, label_height)
