@@ -30,6 +30,7 @@ class MapServerRenderer(Renderer):
 
 		#NOTE: we make the assumption here that a full node will contain only
 		#one geometry
+		#TODO: respect self.layers here
 		rect = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y)
 		self.mapfile.queryByRect(rect)
 		for x in range(self.mapfile.numlayers):

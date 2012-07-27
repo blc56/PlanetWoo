@@ -11,7 +11,7 @@ import tiletree.mapserver
 import tiletree.postgres
 import tiletree.composite
 import tiletree.label
-from scripts.render_to_csv import load_cutter
+from scripts.render_to_csv import load_cutter, load_renderer
 
 class DynamicTileFetcher(tornado.web.RequestHandler):
 	def initialize(self, storage_manager, layers):
@@ -34,8 +34,8 @@ def load_config(config_path, conn_str):
 	for layer_name in config['layer_order']:
 		layer = config[layer_name]
 		cutter = load_cutter(layer)
-		renderer = tiletree.mapserver.MapServerRenderer(open(layer['mapfile'],'r').read(), layer['layers'],
-			img_buffer=layer.get('img_buffer', 0))
+		renderer = load_renderer(layer)
+
 		storage_manager = tiletree.postgres.PostgresStorageManager(conn_str, layer['tree_table'],
 			layer['image_table'])
 		render_infos[layer_name] = tiletree.composite.RenderInfo(storage_manager, renderer, cutter,
@@ -44,25 +44,7 @@ def load_config(config_path, conn_str):
 		#TODO: XXX BLC TESTING
 		storage_manager.recreate_tables()
 
-	for layer_name in config['label_order']:
-		layer = config[layer_name]
-		cutter = load_cutter(layer)
-		feature_storage_manager = tiletree.postgres.PostgresStorageManager(conn_str, layer['tree_table'],
-			layer['image_table'])
-		label_storage_manager = tiletree.postgres.PostgresStorageManager(conn_str, 'label_' + layer['tree_table'],
-			'label_' + layer['image_table'])
-		renderer = tiletree.label.LabelRenderer(open(layer['mapfile'],'r').read(), feature_storage_manager,
-			layer.get('label_col_index', None), config['extent'], point_labels=layer.get('point_labels', False))
-
-		render_infos['label_' + layer_name] = tiletree.composite.RenderInfo(label_storage_manager, renderer, cutter,
-			layer.get('check_full', True), layer.get('start_zoom', None), layer.get('stop_zoom', None))
-
-		#TODO: XXX BLC TESTING
-		label_storage_manager.recreate_tables()
-
-	layer_list = config['layer_order'] + ['label_' + x for x in config['label_order']]
-
-	return (tiletree.composite.TileCompositor(render_infos, config['extent']), layer_list)
+	return (tiletree.composite.TileCompositor(render_infos, config['extent']), config['layer_order'])
 
 def main():
 	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")

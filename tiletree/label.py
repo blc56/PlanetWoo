@@ -27,13 +27,12 @@ class LabelClass:
 		self.min_scale_denom = min_scale_denom
 
 class LabelRenderer:
-	def __init__(self, mapfile_string, feature_storage_manager, label_col_index, map_extent,
+	def __init__(self, mapfile_string, feature_storage_manager, label_col_index,
 			min_zoom=0, max_zoom=19, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
 			point_labels=False, point_buffer=4, position_attempts=4):
 		self.mapfile = mapscript.fromstring(mapfile_string)
 		self.feature_storage_manager = feature_storage_manager
 		self.label_col_index = label_col_index
-		self.map_extent = map_extent
 		self.label_spacing = label_spacing
 		self.img_w = img_w
 		self.img_h = img_h

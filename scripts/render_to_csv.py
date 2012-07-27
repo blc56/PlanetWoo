@@ -22,6 +22,19 @@ def load_cutter(config):
 	else:
 		return tiletree.NullGeomCutter()
 
+def load_renderer(config):
+	renderer_type = config.get('renderer_type', 'mapserver')
+
+	if(renderer_type == 'mapserver'):
+		return tiletree.mapserver.MapServerRenderer(open(config['mapfile_path'],'r').read(),
+			config['mapserver_layers'], img_w=256, img_h=256, img_buffer=config.get('img_buffer', 0))
+
+	elif(renderer_type == 'label'):
+		return tiletree.label.LabelRenderer(open(config['mapfile_path'],'r').read(), None,
+			config.get('label_col_index', None), point_labels=config.get('point_labels', False))
+
+	return None
+
 def load_postgres_cutter(connect_str, table_name):
 	return tiletree.postgres.PostgresCutter(connect_str, table_name)
 
@@ -58,14 +71,14 @@ def render_to_csv(config):
 		log_file = open(config['output_prefix'] + 'render_%d.log' % count, 'w')
 		start_checks_zoom = config.get('start_checks_zoom', None)
 		check_full = config.get('check_full', True)
+		renderer = load_renderer(config)
 				
 		start_node = tiletree.QuadTreeGenNode(min_x=job['extent'][0], min_y=job['extent'][1],
 			max_x=job['extent'][2], max_y=job['extent'][3], zoom_level=job['start_zoom'],
 			tile_x=job['tile_x'], tile_y=job['tile_y'])
 		generate_jobs.append(start_node.to_generator_job(
 			tiletree.csvstorage.CSVStorageManager(open(tree_file_path, 'w'), open(image_file_path, 'w')),
-			tiletree.mapserver.MapServerRenderer(open(config['mapfile_path'],'r').read(),
-				config['mapserver_layers'], img_w=256, img_h=256),
+			renderer,
 			cutter.clone(),
 			job['stop_zoom'],
 			log_file,
