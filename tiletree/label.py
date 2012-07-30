@@ -48,7 +48,7 @@ class LabelRenderer:
 			raise Exception("Bad parameters")
 
 	def tile_info(self, node, check_full=True):
-		return (False, False, False)
+		return None
 
 	def render_label(self, context, label_text, img_x, img_y, img_max_x, img_max_y, label_class):
 		context.move_to(img_x, img_y)

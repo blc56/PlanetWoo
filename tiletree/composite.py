@@ -43,10 +43,7 @@ class TileCompositor:
 			geom = cutter.cut(bbox[0], bbox[1], bbox[2], bbox[3])
 			node = tiletree.QuadTreeGenNode(geom, bbox[0], bbox[1], bbox[2], bbox[3], zoom_level, None,
 				False, False, False, None, x, y)
-			is_blank, is_full, is_leaf = renderer.tile_info(node, check_full=render_info.check_full)
-			node.is_blank = is_blank
-			node.is_full = is_full
-			node.is_leaf = is_leaf
+			renderer.tile_info(node, check_full=render_info.check_full)
 			img_bytes = renderer.render(node)[1]
 			storage_manager.store_node(node)
 			storage_manager.store_image(node, img_bytes)

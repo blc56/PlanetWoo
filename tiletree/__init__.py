@@ -256,12 +256,9 @@ class NullRenderer:
 
 		return (self.blank_img_id, self.blank_img_bytes)
 
-	#\return (is_blank, is_full, is_leaf)
+	#updates node with relevant info
 	def tile_info(self, node, check_full=True):
-		is_blank = False
-		is_full = False
-		is_leaf = False
-		return (is_blank, is_full, is_leaf)
+		return None
 
 	def render_normal(self, node):
 		return self.render_blank()
@@ -275,28 +272,28 @@ class Renderer(NullRenderer):
 
 	#\return (is_blank, is_full, is_leaf)
 	def tile_info(self, node, check_full=True):
-		is_blank = False
-		is_full = False
-		is_leaf = False
+		node.is_blank = False
+		node.is_full = False
+		node.is_leaf = False
 
 		if(node.geom == None or (hasattr(node.geom, 'is_empty') and node.geom.is_empty)):
-			is_blank = True
-			is_leaf = True
+			node.is_blank = True
+			node.is_leaf = True
 		elif(check_full):
 			bbox = shapely.wkt.loads("POLYGON((%(min_x)s %(min_y)s, %(min_x)s %(max_y)s, %(max_x)s  %(max_y)s, %(max_x)s %(min_y)s, %(min_x)s %(min_y)s))" % 
 				{'min_x': node.min_x, 'min_y': node.min_y, 'max_x': node.max_x, 'max_y': node.max_y})
 			if(type(node.geom) == list):
 				for geom in node.geom:
 					if(geom.contains(bbox)):
-						is_full = True
-						is_leaf = True
+						node.is_full = True
+						node.is_leaf = True
 						break
 			else:
 				if(node.geom.contains(bbox)):
-					is_full = True
-					is_leaf = True
+					node.is_full = True
+					node.is_leaf = True
 
-		return (is_blank, is_full, is_leaf)
+		return None
 
 	def render(self, node):
 		if(node.is_blank):
@@ -402,8 +399,7 @@ class GeneratorJob:
 def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom=None, check_full=True):
 	if(start_checks_zoom != None and node.zoom_level >= start_checks_zoom):
 		#is this node a leaf?
-		node.is_blank, node.is_full, node.is_leaf =\
-			renderer.tile_info(node, check_full)
+		renderer.tile_info(node, check_full)
 
 	if(node.zoom_level >= stop_level):
 		node.is_leaf = True

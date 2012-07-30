@@ -24,9 +24,9 @@ class MapServerRenderer(Renderer):
 		self.mapfile.loadOWSParameters(self.build_request(0, 0, 10, 10))
 
 	def tile_info(self, node, check_full=True):
-		is_blank = True
-		is_full = False
-		is_leaf = True
+		node.is_blank = True
+		node.is_full = False
+		node.is_leaf = True
 
 		#NOTE: we make the assumption here that a full node will contain only
 		#one geometry
@@ -38,14 +38,14 @@ class MapServerRenderer(Renderer):
 			layer.open()
 			num_results = layer.getNumResults()
 			if(num_results > 0 and num_results != 1):
-				is_blank = False
-				is_leaf = False
+				node.is_blank = False
+				node.is_leaf = False
 				layer.close()
 				#this is a non blank, non full node
 				break
 			elif(num_results == 1):
-				is_blank = False
-				is_leaf = False
+				node.is_blank = False
+				node.is_leaf = False
 				if(check_full):
 					result = layer.getResult(0)
 					shape = layer.getShape(result)
@@ -59,7 +59,6 @@ class MapServerRenderer(Renderer):
 			layer.close()
 
 		self.mapfile.freeQuery()
-		return (is_blank, is_full, is_leaf)
 
 	def cut_img_buffer(self, img_bytes):
 		#TODO:XXX: fix this function
