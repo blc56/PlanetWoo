@@ -170,10 +170,7 @@ class LabelRenderer:
 			#try and position the label
 
 			label_line = self.build_label_line(y_pos, min_label_x, max_label_x)
-
-			#if this is a full tile, then we know that the label will be within the shape
-			if(not node.is_full):
-				label_line = label_line.intersection(shape)
+			label_line = label_line.intersection(shape)
 
 			if(not label_line):
 				continue
@@ -189,6 +186,9 @@ class LabelRenderer:
 					ghost_y = y_pos
 					good_position = True
 					break
+
+			if(good_position):
+				break
 
 			#calculate the next y position to try
 			if(attempt_iter % 2 == 0):
@@ -264,7 +264,7 @@ class LabelRenderer:
 			is_empty = False
 			is_leaf = False
 
-			#if(label_text != 'Maryland'):
+			#if(label_text != 'Stafford'):
 				#continue
 
 			pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
@@ -365,8 +365,6 @@ class LabelRenderer:
 		if(not node.is_full):
 			if(node.is_empty and is_leaf):
 				node.is_leaf = True
-
-		print node.is_full, node.is_empty, node.is_leaf
 
 		return self.build_image(surface, node)
 
