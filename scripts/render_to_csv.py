@@ -31,7 +31,7 @@ def load_renderer(config):
 
 	elif(renderer_type == 'label'):
 		return tiletree.label.LabelRenderer(open(config['mapfile_path'],'r').read(), None,
-			config.get('label_col_index', None), point_labels=config.get('point_labels', False))
+			config.get('label_col_index', None), config['mapserver_layers'], point_labels=config.get('point_labels', False))
 
 	return None
 

@@ -27,12 +27,13 @@ class LabelClass:
 		self.min_scale_denom = min_scale_denom
 
 class LabelRenderer:
-	def __init__(self, mapfile_string, feature_storage_manager, label_col_index,
+	def __init__(self, mapfile_string, feature_storage_manager, label_col_index, mapserver_layers,
 			min_zoom=0, max_zoom=19, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
 			point_labels=False, point_buffer=4, position_attempts=4):
 		self.mapfile = mapscript.fromstring(mapfile_string)
 		self.feature_storage_manager = feature_storage_manager
 		self.label_col_index = label_col_index
+		self.mapserver_layers = mapserver_layers
 		self.label_spacing = label_spacing
 		self.img_w = img_w
 		self.img_h = img_h
@@ -196,53 +197,51 @@ class LabelRenderer:
 			return
 		if(label_class.mapserver_query == None):
 			label_class.mapserver_query = "(1 == 1)"
+
 		layer.queryByAttributes(self.mapfile, '', label_class.mapserver_query, mapscript.MS_MULTIPLE)
+		layer.open()
+		num_results = layer.getNumResults()
+		for f in range(num_results):
+			result = layer.getResult(f)
+			shape = layer.getShape(result)
+			label_text = unicode(shape.getValue(self.label_col_index), 'latin_1')
+			context, label_width, label_height, label_text =\
+				self.get_label_size(surface, label_text, label_class)
 
-		for x in range(self.mapfile.numlayers):
-			layer = self.mapfile.getLayer(x)
-			layer.open()
-			num_results = layer.getNumResults()
-			for f in range(num_results):
-				result = layer.getResult(f)
-				shape = layer.getShape(result)
-				label_text = unicode(shape.getValue(self.label_col_index), 'latin_1')
-				context, label_width, label_height, label_text =\
-					self.get_label_size(surface, label_text, label_class)
+			#weed out some false positives
+			if(not self.mapfile.extent.toPolygon().intersects(shape)):
+				continue
 
-				#weed out some false positives
-				if(not self.mapfile.extent.toPolygon().intersects(shape)):
-					continue
+			#if(label_text != 'Maryland'):
+				#continue
 
-				#if(label_text != 'Maryland'):
-					#continue
+			pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
+					label_width, label_height)
 
-				pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
-						label_width, label_height)
+			if(pos_results == None):
+				continue
 
-				if(pos_results == None):
-					continue
+			is_in_tile, label_extent = pos_results
 
-				is_in_tile, label_extent = pos_results
+			color = (1, 0, 0, 1)
+			if(self.collision_check(node, label_extent, label_bboxes)):
+				color = (0, 1, 0, 1)
+				continue
 
-				color = (1, 0, 0, 1)
-				if(self.collision_check(node, label_extent, label_bboxes)):
-					color = (0, 1, 0, 1)
-					continue
+			label_bboxes.append(label_extent)
+			if(not is_in_tile):
+				continue
 
-				label_bboxes.append(label_extent)
-				if(not is_in_tile):
-					continue
+			img_x, img_y = tiletree.geo_coord_to_img(label_extent[0], label_extent[1],
+					self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
+			img_max_x, img_max_y = tiletree.geo_coord_to_img(label_extent[2], label_extent[3],
+					self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
 
-				img_x, img_y = tiletree.geo_coord_to_img(label_extent[0], label_extent[1],
-						self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
-				img_max_x, img_max_y = tiletree.geo_coord_to_img(label_extent[2], label_extent[3],
-						self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
+			#TODO: add fontconfig with zoom level range and other options
+			label_class.font_color = color
+			self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
 
-				#TODO: add fontconfig with zoom level range and other options
-				label_class.font_color = color
-				self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
-
-			layer.close()
+		layer.close()
 
 		self.mapfile.freeQuery()
 
@@ -263,8 +262,8 @@ class LabelRenderer:
 			self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
 					node.max_x + x_buffer, node.max_y + y_buffer)
 
-		for layer_iter in range(self.mapfile.numlayers):
-			layer = self.mapfile.getLayer(layer_iter)
+		for layer_name in self.mapserver_layers:
+			layer = self.mapfile.getLayerByName(layer_name)
 			for class_iter in range(layer.numclasses):
 				mapclass = layer.getClass(class_iter)
 				label_class = LabelClass()

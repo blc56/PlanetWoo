@@ -33,8 +33,8 @@ class MapServerRenderer(Renderer):
 		#TODO: respect self.layers here
 		rect = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y)
 		self.mapfile.queryByRect(rect)
-		for x in range(self.mapfile.numlayers):
-			layer = self.mapfile.getLayer(x)
+		for layer_name in self.layers:
+			layer = self.mapfile.getLayerByName(layer_name)
 			layer.open()
 			num_results = layer.getNumResults()
 			if(num_results > 0 and num_results != 1):
