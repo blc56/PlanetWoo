@@ -233,13 +233,19 @@ class LabelRenderer:
 		label_class.font_color = color
 		self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
 
+	#return (is_empty, is_leaf)
 	def render_class(self, node, scale_denom, layer, surface, label_class, label_bboxes):
 		#check for the scale
-		if(scale_denom > label_class.max_scale_denom or
-				scale_denom < label_class.min_scale_denom):
-			return
+
+		if(scale_denom > label_class.max_scale_denom):
+			return (True, True)
+		if(scale_denom < label_class.min_scale_denom):
+			return (True, False)
 		if(label_class.mapserver_query == None):
 			label_class.mapserver_query = "(1 == 1)"
+
+		is_empty = True
+		is_leaf = True
 
 		layer.queryByAttributes(self.mapfile, '', label_class.mapserver_query, mapscript.MS_MULTIPLE)
 		layer.open()
@@ -254,6 +260,9 @@ class LabelRenderer:
 			#weed out some false positives
 			if(not self.mapfile.extent.toPolygon().intersects(shape)):
 				continue
+
+			is_empty = False
+			is_leaf = False
 
 			#if(label_text != 'Maryland'):
 				#continue
@@ -277,6 +286,8 @@ class LabelRenderer:
 		layer.close()
 
 		self.mapfile.freeQuery()
+
+		return (is_empty, is_leaf)
 
 	def render(self, node):
 		if(not self.point_labels and node.is_full):
@@ -330,6 +341,9 @@ class LabelRenderer:
 			self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
 					node.max_x + x_buffer, node.max_y + y_buffer)
 
+		node.is_empty = True
+		is_leaf = True
+
 		for layer_name in self.mapserver_layers:
 			layer = self.mapfile.getLayerByName(layer_name)
 			for class_iter in range(layer.numclasses):
@@ -340,7 +354,19 @@ class LabelRenderer:
 					label_class.min_scale_denom = mapclass.minscaledenom
 				if(mapclass.maxscaledenom > 0):
 					label_class.max_scale_denom = mapclass.maxscaledenom
-				self.render_class(node, scale_denom, layer, surface, label_class, label_bboxes)
+				this_empty, this_leaf = \
+						self.render_class(node, scale_denom, layer, surface, label_class, label_bboxes)
+
+				if(not this_empty):
+					node.is_empty = False
+				if(not this_leaf):
+					is_leaf = False
+
+		if(not node.is_full):
+			if(node.is_empty and is_leaf):
+				node.is_leaf = True
+
+		print node.is_full, node.is_empty, node.is_leaf
 
 		return self.build_image(surface, node)
 
