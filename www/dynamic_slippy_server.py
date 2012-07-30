@@ -41,6 +41,9 @@ def load_config(config_path, conn_str):
 		render_infos[layer_name] = tiletree.composite.RenderInfo(storage_manager, renderer, cutter,
 			layer.get('check_full', True), layer.get('start_zoom', None), layer.get('stop_zoom', None))
 
+		if(layer.get('renderer_type', '') == 'label'):
+			renderer.storage_manager = storage_manager
+
 		#TODO: XXX BLC TESTING
 		storage_manager.recreate_tables()
 

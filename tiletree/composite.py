@@ -41,8 +41,8 @@ class TileCompositor:
 		except tiletree.TileNotFoundException:
 			bbox = tiletree.tile_coord_to_bbox(zoom_level, x, y, extent)
 			geom = cutter.cut(bbox[0], bbox[1], bbox[2], bbox[3])
-			node = tiletree.QuadTreeGenNode(geom, bbox[0], bbox[1], bbox[2], bbox[3], zoom_level, None,
-				False, False, False, None, x, y)
+			node = tiletree.QuadTreeGenNode(None,  bbox[0], bbox[1], bbox[2], bbox[3], zoom_level, None,
+				geom=geom, tile_x=x, tile_y=y)
 			renderer.tile_info(node, check_full=render_info.check_full)
 			img_bytes = renderer.render(node)[1]
 			storage_manager.store_node(node)

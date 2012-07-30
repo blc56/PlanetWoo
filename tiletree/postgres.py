@@ -91,17 +91,15 @@ img_bytes BYTEA
 		curs = self.conn.cursor()
 
 		for z in range(zoom_level, -1, -1):
-			node_id = tiletree.build_node_id(zoom_level, x, y)
+			node_id = tiletree.build_node_id(z, x, y)
 			curs.execute(\
 	"""
-	SELECT nodes.is_blank, nodes.is_full, nodes.is_leaf
+	SELECT nodes.is_blank, nodes.is_full, nodes.is_leaf, nodes.metadata
 	FROM %s nodes
 	WHERE nodes.node_id = %%s
 	""" % (self.node_table,), (node_id,) )
 			result = curs.fetchone()
 			if(result):
-				if(z != zoom_level and not result[0]):
-					raise tiletree.TileNotFoundException()
 				return result
 
 			x = int(math.floor(x/2.0))
@@ -157,7 +155,7 @@ INSERT INTO %s VALUES(%%s, %%s)
 		curs.execute(\
 """
 INSERT INTO %s VALUES(%%(node_id)s, %%(zoom_level)s, %%(tile_x)s,
-%%(tile_y)s, %%(image_id)s, %%(is_leaf)s, %%(is_blank)s, %%(is_full)s)
+%%(tile_y)s, %%(image_id)s, %%(is_leaf)s, %%(is_blank)s, %%(is_full)s, %%(metadata)s)
 """ % (self.node_table,), node.to_dict())
 
 

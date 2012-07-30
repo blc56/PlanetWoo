@@ -5,6 +5,8 @@ import cairo
 import math
 import sys
 import shapely
+import json
+import copy
 
 import tiletree
 
@@ -26,12 +28,18 @@ class LabelClass:
 		self.max_scale_denom = max_scale_denom
 		self.min_scale_denom = min_scale_denom
 
+	def to_dict(self):
+		return copy.copy(self.__dict__)
+
+	def from_dict(self, in_dict):
+		self.__dict__.update(in_dict)
+
 class LabelRenderer:
-	def __init__(self, mapfile_string, feature_storage_manager, label_col_index, mapserver_layers,
+	def __init__(self, mapfile_string, storage_manager, label_col_index, mapserver_layers,
 			min_zoom=0, max_zoom=19, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
 			point_labels=False, point_buffer=4, position_attempts=4):
 		self.mapfile = mapscript.fromstring(mapfile_string)
-		self.feature_storage_manager = feature_storage_manager
+		self.storage_manager = storage_manager
 		self.label_col_index = label_col_index
 		self.mapserver_layers = mapserver_layers
 		self.label_spacing = label_spacing
@@ -48,7 +56,18 @@ class LabelRenderer:
 			raise Exception("Bad parameters")
 
 	def tile_info(self, node, check_full=True):
-		return None
+		if(self.storage_manager == None or not check_full):
+			return
+
+		try:
+			result = self.storage_manager.fetch_info(node.zoom_level, node.tile_x, node.tile_y)
+		except tiletree.TileNotFoundException:
+			return
+
+		is_blank, is_full, is_leaf, metadata = result
+		if(is_full):
+			node.is_full = True
+			node.metadata = metadata
 
 	def render_label(self, context, label_text, img_x, img_y, img_max_x, img_max_y, label_class):
 		context.move_to(img_x, img_y)
@@ -104,15 +123,14 @@ class LabelRenderer:
 
 		return (is_in_tile, label_geo_bbox)
 
-	def find_poly_label_ghost(self, shape, node, x_repeat_interval, y_repeat_interval):
-		seed_point = shape.getCentroid()
+	def find_poly_label_ghost(self, seed_x, seed_y, node, x_repeat_interval, y_repeat_interval):
 		x_mid = (node.max_x + node.min_x) / 2.0
 		y_mid = (node.max_y + node.min_y) / 2.0
-		x_spaces = math.floor((x_mid - seed_point.x)/float(x_repeat_interval) + .5)
-		y_spaces = math.floor((y_mid - seed_point.y)/float(y_repeat_interval) + .5)
+		x_spaces = math.floor((x_mid - seed_x)/float(x_repeat_interval) + .5)
+		y_spaces = math.floor((y_mid - seed_y)/float(y_repeat_interval) + .5)
 
-		ghost_x = seed_point.x + x_spaces * x_repeat_interval
-		ghost_y = seed_point.y + y_spaces * y_repeat_interval
+		ghost_x = seed_x + x_spaces * x_repeat_interval
+		ghost_y = seed_y + y_spaces * y_repeat_interval
 
 		return ghost_x, ghost_y
 
@@ -130,12 +148,14 @@ class LabelRenderer:
 
 		#this crashes :(
 		#shape = shape.simplify(min(x_scale, y_scale))
-		tile_shape = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y).toPolygon()
-		#shape = shape.intersection(tile_shape)
-		#if(shape == None):
-			#return None
 
-		ghost_x, ghost_y  = self.find_poly_label_ghost(shape, node, x_repeat_interval,  y_repeat_interval)
+		tile_shape = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y).toPolygon()
+		if(shape.contains(tile_shape)):
+			node.is_full = True
+
+		seed_point = shape.getCentroid()
+		ghost_x, ghost_y  = self.find_poly_label_ghost(seed_point.x, seed_point.y, node,
+				x_repeat_interval,  y_repeat_interval)
 		min_label_x = ghost_x - (x_scale * self.label_adjustment_max)
 		max_label_x = ghost_x + (x_scale * self.label_adjustment_max)
 
@@ -150,7 +170,11 @@ class LabelRenderer:
 			#try and position the label
 
 			label_line = self.build_label_line(y_pos, min_label_x, max_label_x)
-			label_line = label_line.intersection(shape)
+
+			#if this is a full tile, then we know that the label will be within the shape
+			if(not node.is_full):
+				label_line = label_line.intersection(shape)
+
 			if(not label_line):
 				continue
 
@@ -190,6 +214,25 @@ class LabelRenderer:
 				return True
 		return False
 
+	def render_pos_results(self, node, context, label_bboxes, label_class, label_text, is_in_tile, label_extent):
+		color = (1, 0, 0, 1)
+		if(self.collision_check(node, label_extent, label_bboxes)):
+			color = (0, 1, 0, 1)
+			return
+
+		label_bboxes.append(label_extent)
+		if(not is_in_tile):
+			return
+
+		img_x, img_y = tiletree.geo_coord_to_img(label_extent[0], label_extent[1],
+				self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
+		img_max_x, img_max_y = tiletree.geo_coord_to_img(label_extent[2], label_extent[3],
+				self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
+
+		#TODO: add fontconfig with zoom level range and other options
+		label_class.font_color = color
+		self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
+
 	def render_class(self, node, scale_denom, layer, surface, label_class, label_bboxes):
 		#check for the scale
 		if(scale_denom > label_class.max_scale_denom or
@@ -218,34 +261,59 @@ class LabelRenderer:
 			pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
 					label_width, label_height)
 
+			if(node.is_full):
+				node.metadata = json.dumps({
+					'label_text': label_text,
+					'seed_point': [shape.getCentroid().x, shape.getCentroid().y],
+					'label_class':  label_class.to_dict()
+				})
+
 			if(pos_results == None):
 				continue
 
-			is_in_tile, label_extent = pos_results
-
-			color = (1, 0, 0, 1)
-			if(self.collision_check(node, label_extent, label_bboxes)):
-				color = (0, 1, 0, 1)
-				continue
-
-			label_bboxes.append(label_extent)
-			if(not is_in_tile):
-				continue
-
-			img_x, img_y = tiletree.geo_coord_to_img(label_extent[0], label_extent[1],
-					self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
-			img_max_x, img_max_y = tiletree.geo_coord_to_img(label_extent[2], label_extent[3],
-					self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
-
-			#TODO: add fontconfig with zoom level range and other options
-			label_class.font_color = color
-			self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
+			self.render_pos_results(node, context, label_bboxes, label_class, label_text,
+					pos_results[0], pos_results[1])
 
 		layer.close()
 
 		self.mapfile.freeQuery()
 
 	def render(self, node):
+		if(not self.point_labels and node.is_full):
+			return self.render_full_poly(node)
+		return self.render_normal(node)
+
+	def render_full_poly(self, node):
+		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
+		metadata = json.loads(node.metadata)
+		label_text = metadata['label_text']
+		seed_point_x, seed_point_y = metadata['seed_point']
+		label_class = LabelClass()
+		label_class.from_dict(metadata['label_class'])
+		x_scale = (node.max_x - node.min_x) / float(self.img_w)
+		y_scale = (node.max_y - node.min_y) / float(self.img_h)
+		x_repeat_interval = self.label_spacing * x_scale
+		y_repeat_interval = self.label_spacing * y_scale
+
+		context, label_width, label_height, label_text = self.get_label_size(surface, label_text, label_class)
+
+		label_geo_w = label_width * x_scale * .5
+		label_geo_h = label_height * y_scale * .5
+		ghost_x, ghost_y = self.find_poly_label_ghost(seed_point_x, seed_point_y, node, x_repeat_interval,
+			y_repeat_interval)
+		label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
+				ghost_x + label_geo_w, ghost_y + label_geo_h) 
+
+		is_in_tile = False
+		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
+			is_in_tile = True
+
+		self.render_pos_results(node, context, [], label_class, label_text, is_in_tile, label_geo_bbox)
+
+		return self.build_image(surface, node)
+
+
+	def render_normal(self, node):
 		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 		#convert from a pixel buffer distance to an image buffer distance
 		x_scale = (node.max_x - node.min_x) / float(self.img_w) 
