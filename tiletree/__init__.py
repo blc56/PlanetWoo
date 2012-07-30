@@ -96,8 +96,7 @@ class QuadTreeGenNode:
 	#
 	def __init__(self, node_id=None, min_x=0, min_y=0, max_x=0, max_y=0, zoom_level=0,
 			image_id=None, is_leaf=False, is_blank=False, is_full=False,
-			#child_0=None, child_1=None, child_2=None, child_3=None,
-			geom=None,tile_x=0, tile_y=0):
+			geom=None,tile_x=0, tile_y=0, metadata=''):
 		if(node_id == None):
 			node_id = build_node_id(zoom_level, tile_x, tile_y)
 		self.node_id = node_id
@@ -112,13 +111,10 @@ class QuadTreeGenNode:
 		self.is_leaf = is_leaf
 		self.is_blank = is_blank
 		self.is_full = is_full
-		#self.child_0 = child_0
-		#self.child_1 = child_1
-		#self.child_2 = child_2
-		#self.child_3 = child_3
 		self.geom = geom
 		self.tile_x = tile_x
 		self.tile_y = tile_y
+		self.metadata = metadata
 
 	def __repr__(self):
 		return repr(self.__dict__)

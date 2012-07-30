@@ -22,6 +22,7 @@ DROP TABLE IF EXISTS %s
 """
 DROP TABLE IF EXISTS %s
 """ % (self.image_table,))
+
 		curs.execute(\
 """
 CREATE TABLE %s 
@@ -33,7 +34,8 @@ tile_y INTEGER,
 image_id BIGINT,
 is_leaf BOOLEAN,
 is_blank BOOLEAN,
-is_full BOOLEAN
+is_full BOOLEAN,
+metadata VARCHAR(512)
 );
 """ % (self.node_table,))
 
@@ -55,12 +57,6 @@ img_bytes BYTEA
 
 		curs.copy_from(tree_file, self.node_table, ',', 'None')
 
-		#use insert statements for now, because I'm too lazy to figure out how to 
-		#copy_from() with bytea's
-		#curs.copy_from(image_file, self.image_table, ',', 'None')
-		#values_generator = ( (l.split(',',1)[0], Binary(tiletree.decode_img_bytes(l.split(',',1)[1])) )
-				#for l in image_file )
-		#curs.executemany('INSERT INTO %s VALUES(%%s, %%s)' % self.image_table, values_generator)
 		#have we inserted a blank image yet?
 		curs.execute('SELECT count(*) from %s where image_id = -1' % self.image_table)
 		have_blank = bool(curs.fetchone()[0])
@@ -162,9 +158,7 @@ INSERT INTO %s VALUES(%%s, %%s)
 """
 INSERT INTO %s VALUES(%%(node_id)s, %%(zoom_level)s, %%(tile_x)s,
 %%(tile_y)s, %%(image_id)s, %%(is_leaf)s, %%(is_blank)s, %%(is_full)s)
-""" % (self.node_table,), {
-		'node_id':node.node_id, 'zoom_level':node.zoom_level, 'tile_x':node.tile_x,
-		'tile_y':node.tile_y, 'image_id':node.image_id, 'is_leaf':node.is_leaf, 'is_blank':node.is_blank, 'is_full':node.is_full})
+""" % (self.node_table,), node.to_dict())
 
 
 	def store(self, node, img_bytes):
