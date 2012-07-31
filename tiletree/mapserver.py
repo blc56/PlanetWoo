@@ -73,7 +73,14 @@ class MapServerRenderer(Renderer):
 		return cut_bytes
 
 	def render_normal(self, node):
-		self.mapfile.setExtent(node.min_x, node.min_y, node.max_x, node.max_y)
+		if(self.img_buffer > 0):
+			expand_x = (self.img_buffer / float(self.img_w)) * (node.max_x - node.min_x)
+			expand_y = (self.img_buffer / float(self.img_h)) * (node.max_y - node.min_y)
+			self.mapfile.setExtent(node.min_x - expand_x, node.min_y - expand_y,
+				node.max_x + expand_x, node.max_y + expand_y)
+		else:
+			self.mapfile.setExtent(node.min_x, node.min_y, node.max_x, node.max_y)
+
 		#self.mapfile.loadOWSParameters(self.build_request(node.min_x, node.min_x, node.max_x, node.max_y))
 		img = self.mapfile.draw()
 
