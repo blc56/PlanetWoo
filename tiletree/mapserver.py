@@ -9,11 +9,13 @@ import tiletree
 import Image
 
 class MapServerRenderer(Renderer):
-	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0):
+	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0, min_zoom=0, max_zoom=19):
 		Renderer.__init__(self, img_w, img_h)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
 		self.img_buffer=img_buffer
+		self.min_zoom = min_zoom
+		self.max_zoom = max_zoom
 
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
@@ -24,6 +26,16 @@ class MapServerRenderer(Renderer):
 		self.mapfile.loadOWSParameters(self.build_request(0, 0, 10, 10))
 
 	def tile_info(self, node, check_full=True):
+		if(node.zoom_level < self.min_zoom):
+			node.is_blank = True
+			node.is_leaf = False
+			return
+
+		if(node.zoom_level > self.max_zoom):
+			node.is_blank = True
+			node.is_leaf = True
+			return
+
 		node.is_blank = True
 		node.is_full = False
 		node.is_leaf = True
@@ -52,8 +64,8 @@ class MapServerRenderer(Renderer):
 					bbox_shape = mapscript.shapeObj_fromWKT(
 						tiletree.bbox_to_wkt(node.min_x, node.min_y, node.max_x, node.max_y))
 					if(shape.contains(bbox_shape)):
-						is_full=True
-						is_leaf=True
+						node.is_full=True
+						node.is_leaf=True
 						layer.close()
 						break
 			layer.close()
