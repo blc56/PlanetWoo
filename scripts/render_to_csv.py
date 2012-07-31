@@ -6,6 +6,7 @@ import tiletree.csvstorage
 import tiletree.shapefile
 import tiletree.mapserver
 import tiletree.postgres
+import tiletree.label
 import os.path
 import argparse
 import json
@@ -22,6 +23,13 @@ def load_cutter(config):
 	else:
 		return tiletree.NullGeomCutter()
 
+def load_label_classes(layer_config, label_renderer):
+	for layer_name, label_classes in layer_config['label_classes'].items():
+		for label_class_dict in label_classes:
+			label_class = tiletree.label.LabelClass()
+			label_class.from_dict(label_class_dict)
+			label_renderer.add_label_class(layer_name, label_class)
+
 def load_renderer(config):
 	renderer_type = config.get('renderer_type', 'mapserver')
 
@@ -30,8 +38,10 @@ def load_renderer(config):
 			config['mapserver_layers'], img_w=256, img_h=256, img_buffer=config.get('img_buffer', 0))
 
 	elif(renderer_type == 'label'):
-		return tiletree.label.LabelRenderer(open(config['mapfile_path'],'r').read(), None,
+		renderer = tiletree.label.LabelRenderer(open(config['mapfile_path'],'r').read(), None,
 			config.get('label_col_index', None), config['mapserver_layers'], point_labels=config.get('point_labels', False))
+		load_label_classes(config, renderer)
+		return renderer
 
 	return None
 

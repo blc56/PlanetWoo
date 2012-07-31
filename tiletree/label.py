@@ -19,14 +19,14 @@ def bbox_check(label_bbox, tile_bbox):
 	return False
 
 class LabelClass:
-	def __init__(self, font='Utopia', font_size=12, mapserver_query="(1==1)", font_color=(0, 0, 0, 1),
-			min_scale_denom=0, max_scale_denom=sys.maxint):
+	def __init__(self, font='arial', font_size=12, mapserver_query="(1==1)", font_color=(0, 0, 0, 1),
+			min_zoom=0, max_zoom=19):
 		self.font = font
 		self.font_size = font_size
 		self.mapserver_query = mapserver_query
 		self.font_color = font_color
-		self.max_scale_denom = max_scale_denom
-		self.min_scale_denom = min_scale_denom
+		self.min_zoom = min_zoom
+		self.max_zoom = max_zoom
 
 	def to_dict(self):
 		return copy.copy(self.__dict__)
@@ -54,6 +54,11 @@ class LabelRenderer:
 		self.label_adjustment_max = (self.label_spacing / 2.0) - max(self.img_w, self.img_h)
 		if(self.label_adjustment_max < 0):
 			raise Exception("Bad parameters")
+		self.label_classes = {}
+
+	def add_label_class(self, layer_name, label_class):
+		layer_classes = self.label_classes.setdefault(layer_name, [])
+		layer_classes.append(label_class)
 
 	def tile_info(self, node, check_full=True):
 		if(self.storage_manager == None or not check_full):
@@ -236,10 +241,9 @@ class LabelRenderer:
 	#return (is_empty, is_leaf)
 	def render_class(self, node, scale_denom, layer, surface, label_class, label_bboxes):
 		#check for the scale
-
-		if(scale_denom > label_class.max_scale_denom):
+		if(node.zoom_level > label_class.max_zoom):
 			return (True, True)
-		if(scale_denom < label_class.min_scale_denom):
+		if(node.zoom_level < label_class.min_zoom):
 			return (True, False)
 		if(label_class.mapserver_query == None):
 			label_class.mapserver_query = "(1 == 1)"
@@ -346,14 +350,7 @@ class LabelRenderer:
 
 		for layer_name in self.mapserver_layers:
 			layer = self.mapfile.getLayerByName(layer_name)
-			for class_iter in range(layer.numclasses):
-				mapclass = layer.getClass(class_iter)
-				label_class = LabelClass()
-				label_class.mapserver_query = mapclass.getExpressionString()
-				if(mapclass.minscaledenom > 0):
-					label_class.min_scale_denom = mapclass.minscaledenom
-				if(mapclass.maxscaledenom > 0):
-					label_class.max_scale_denom = mapclass.maxscaledenom
+			for label_class in self.label_classes[layer_name]:
 				this_empty, this_leaf = \
 						self.render_class(node, scale_denom, layer, surface, label_class, label_bboxes)
 
