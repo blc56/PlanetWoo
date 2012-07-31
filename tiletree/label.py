@@ -278,7 +278,7 @@ class LabelRenderer:
 				node.metadata = json.dumps({
 					'label_text': label_text,
 					'seed_point': [shape.getCentroid().x, shape.getCentroid().y],
-					'label_class':  label_class.to_dict()
+					'layer_name': layer.name
 				})
 
 			if(pos_results == None):
@@ -299,31 +299,40 @@ class LabelRenderer:
 		return self.render_normal(node)
 
 	def render_full_poly(self, node):
+		node.is_full = True
+		node.is_empty = True
+		if(node.zoom_level > self.max_zoom):
+			node.is_leaf = True
+
 		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 		metadata = json.loads(node.metadata)
 		label_text = metadata['label_text']
 		seed_point_x, seed_point_y = metadata['seed_point']
-		label_class = LabelClass()
-		label_class.from_dict(metadata['label_class'])
 		x_scale = (node.max_x - node.min_x) / float(self.img_w)
 		y_scale = (node.max_y - node.min_y) / float(self.img_h)
 		x_repeat_interval = self.label_spacing * x_scale
 		y_repeat_interval = self.label_spacing * y_scale
 
-		context, label_width, label_height, label_text = self.get_label_size(surface, label_text, label_class)
+		for label_class in self.label_classes[metadata['layer_name']]:
+			if(node.zoom_level > label_class.max_zoom):
+				continue
+			if(node.zoom_level < label_class.min_zoom):
+				continue
 
-		label_geo_w = label_width * x_scale * .5
-		label_geo_h = label_height * y_scale * .5
-		ghost_x, ghost_y = self.find_poly_label_ghost(seed_point_x, seed_point_y, node, x_repeat_interval,
-			y_repeat_interval)
-		label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
-				ghost_x + label_geo_w, ghost_y + label_geo_h) 
+			context, label_width, label_height, label_text = self.get_label_size(surface, label_text, label_class)
+			label_geo_w = label_width * x_scale * .5
+			label_geo_h = label_height * y_scale * .5
+			ghost_x, ghost_y = self.find_poly_label_ghost(seed_point_x, seed_point_y, node, x_repeat_interval,
+				y_repeat_interval)
+			label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
+					ghost_x + label_geo_w, ghost_y + label_geo_h) 
 
-		is_in_tile = False
-		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
-			is_in_tile = True
+			is_in_tile = False
+			if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
+				is_in_tile = True
 
-		self.render_pos_results(node, context, [], label_class, label_text, is_in_tile, label_geo_bbox)
+			#TODO: label_bboxes here!
+			self.render_pos_results(node, context, [], label_class, label_text, is_in_tile, label_geo_bbox)
 
 		return self.build_image(surface, node)
 
