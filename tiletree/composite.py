@@ -51,6 +51,7 @@ class TileCompositor:
 			return StringIO.StringIO(img_bytes.getvalue())
 
 	def fetch_helper(self, tile_generator):
+		#TODO: use imagemagick to see if paletting is faster
 		#then composite those layers together
 		output_tile = None
 		for tile in tile_generator:
@@ -58,10 +59,14 @@ class TileCompositor:
 				continue
 			if(output_tile == None):
 				output_tile = Image.open(tile)
+				output_tile = output_tile.convert('RGBA')
 				continue
 			new_tile = Image.open(tile)
+			new_tile = new_tile.convert('RGBA')
 			output_tile.paste(new_tile, (0, 0), new_tile)
 
+		output_tile = output_tile.convert('RGB')
+		output_tile = output_tile.convert('P', palette=Image.ADAPTIVE, colors=256)
 		output_bytes = StringIO.StringIO()
 		output_tile.save(output_bytes, format='PNG')
 

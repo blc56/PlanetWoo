@@ -270,6 +270,7 @@ class LabelRenderer:
 
 			#if(label_text != 'Stafford'):
 				#continue
+			#print label_text
 
 			pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
 					label_width, label_height)
