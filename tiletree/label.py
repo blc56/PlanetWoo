@@ -118,22 +118,31 @@ class LabelRenderer:
 		return (img_id, img_bytes)
 
 	#returns (is_in_tile, bbox)
-	def position_label(self, shape, node, img_w, img_h, label_spacing, label_width, label_height):
+	def position_label(self, shape, node, label_width, label_height, label_geoms):
 		if(self.point_labels):
-			return self.position_point_label(shape, node, img_w, img_h, label_spacing, label_width, label_height)
-		return self.position_poly_label(shape, node, img_w, img_h, label_spacing, label_width, label_height)
+			return self.position_point_label(shape, node, label_width, label_height, label_geoms)
+		return self.position_poly_label(shape, node, label_width, label_height, label_geoms)
 
-	def position_point_label(self, shape, node, img_w, img_h, label_spacing, label_width, label_height):
+	def position_point_label(self, shape, node, label_width, label_height, label_geoms):
 		seed_point = shape.getCentroid()
 
-		x_scale = (node.max_x - node.min_x) / float(img_w)
-		y_scale = (node.max_y - node.min_y) / float(img_h)
+		x_scale = (node.max_x - node.min_x) / float(self.img_w)
+		y_scale = (node.max_y - node.min_y) / float(self.img_h)
 		label_geo_w = label_width * x_scale * .5
 		label_geo_h = label_height * y_scale * .5
 
 		#put the text to the right of the point
 		label_geo_bbox = (seed_point.x + (self.point_buffer * x_scale), seed_point.y - label_geo_h,
 				seed_point.x + label_geo_w * 2, seed_point.y + label_geo_h) 
+
+		#make sure that this label doesnt intersect with any other labels
+		label_shape = mapscript.rectObj(*label_geo_bbox).toPolygon()
+		if(label_geoms[0].type != mapscript.MS_SHAPE_NULL):
+			if(label_shape.intersects(label_geoms[0])):
+				return None
+			label_geoms[0] = label_geoms[0].Union(label_shape)
+		else:
+			label_geoms[0] = label_shape
 
 		is_in_tile = False
 		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
@@ -156,13 +165,13 @@ class LabelRenderer:
 		wkt = 'MULTILINESTRING((%(min_x)s %(y_pos)s, %(max_x)s %(y_pos)s))'
 		return mapscript.shapeObj.fromWKT(wkt % {'min_x':min_x, 'max_x':max_x, 'y_pos':y_pos})
 
-	def position_poly_label(self, shape, node, img_w, img_h, label_spacing, label_width, label_height):
-		x_scale = (node.max_x - node.min_x) / float(img_w)
-		y_scale = (node.max_y - node.min_y) / float(img_h)
+	def position_poly_label(self, shape, node, label_width, label_height, label_geoms):
+		x_scale = (node.max_x - node.min_x) / float(self.img_w)
+		y_scale = (node.max_y - node.min_y) / float(self.img_h)
 		label_geo_w = label_width * x_scale * .5
 		label_geo_h = label_height * y_scale * .5
-		x_repeat_interval = label_spacing * x_scale
-		y_repeat_interval = label_spacing * y_scale
+		x_repeat_interval = self.label_spacing * x_scale
+		y_repeat_interval = self.label_spacing * y_scale
 
 		#this crashes :(
 		#shape = shape.simplify(min(x_scale, y_scale))
@@ -188,7 +197,11 @@ class LabelRenderer:
 			#try and position the label
 
 			label_line = self.build_label_line(y_pos, min_label_x, max_label_x)
+			#make sure the label is contained by its corresponding geometry
 			label_line = label_line.intersection(shape)
+			#make sure the label doesn't collided with any other labels
+			if(label_geoms[0].type != mapscript.MS_SHAPE_NULL):
+				label_line = label_line.difference(label_geoms[0])
 
 			if(not label_line):
 				continue
@@ -220,25 +233,19 @@ class LabelRenderer:
 		label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
 				ghost_x + label_geo_w, ghost_y + label_geo_h) 
 
+		label_shape = mapscript.rectObj(*label_geo_bbox).toPolygon()
+		if(label_geoms[0].type != mapscript.MS_SHAPE_NULL):
+			label_geoms[0] = label_geoms[0].Union(label_shape)
+		else:
+			label_geoms[0] = label_shape
+
 		is_in_tile = False
 		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
 			is_in_tile = True
 
 		return (is_in_tile, label_geo_bbox)
 
-	def collision_check(self, node, check_bbox, label_bboxes):
-		for l in label_bboxes:
-			if(bbox_check(l, check_bbox)):
-				return True
-		return False
-
-	def render_pos_results(self, node, context, label_bboxes, label_class, label_text, is_in_tile, label_extent):
-		color = (1, 0, 0, 1)
-		if(self.collision_check(node, label_extent, label_bboxes)):
-			color = (0, 1, 0, 1)
-			return
-
-		label_bboxes.append(label_extent)
+	def render_pos_results(self, node, context, label_class, label_text, is_in_tile, label_extent):
 		if(not is_in_tile):
 			return
 
@@ -247,12 +254,10 @@ class LabelRenderer:
 		img_max_x, img_max_y = tiletree.geo_coord_to_img(label_extent[2], label_extent[3],
 				self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
 
-		#TODO: add fontconfig with zoom level range and other options
-		label_class.font_color = color
 		self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
 
 	#return (is_empty, is_leaf)
-	def render_class(self, node, scale_denom, layer, surface, label_class, label_bboxes):
+	def render_class(self, node, scale_denom, layer, surface, label_class, label_geoms):
 		#check for the scale
 		if(node.zoom_level > label_class.max_zoom):
 			return (True, True)
@@ -285,8 +290,7 @@ class LabelRenderer:
 				#continue
 			#print label_text
 
-			pos_results = self.position_label(shape, node, self.img_w, self.img_h, self.label_spacing,
-					label_width, label_height)
+			pos_results = self.position_label(shape, node, label_width, label_height, label_geoms)
 
 			if(node.is_full):
 				node.metadata = json.dumps({
@@ -298,8 +302,7 @@ class LabelRenderer:
 			if(pos_results == None):
 				continue
 
-			self.render_pos_results(node, context, label_bboxes, label_class, label_text,
-					pos_results[0], pos_results[1])
+			self.render_pos_results(node, context, label_class, label_text, pos_results[0], pos_results[1])
 
 		layer.close()
 
@@ -312,11 +315,15 @@ class LabelRenderer:
 			return self.render_full_poly(node)
 		return self.render_normal(node)
 
-	def render_full_poly(self, node):
+	def render_full_poly(self, node, label_geoms=None):
 		node.is_full = True
 		node.is_empty = True
 		if(node.zoom_level > self.max_zoom):
 			node.is_leaf = True
+		if(label_geoms == None):
+			#encapsulate the geometry in a list becase we need the modifications to
+			#label_geoms from position_poly_label
+			label_geoms = [mapscript.shapeObj(mapscript.MS_SHAPE_NULL)]
 
 		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 		metadata = json.loads(node.metadata)
@@ -334,24 +341,15 @@ class LabelRenderer:
 				continue
 
 			context, label_width, label_height, label_text = self.get_label_size(surface, label_text, label_class)
-			label_geo_w = label_width * x_scale * .5
-			label_geo_h = label_height * y_scale * .5
-			ghost_x, ghost_y = self.find_poly_label_ghost(seed_point_x, seed_point_y, node, x_repeat_interval,
-				y_repeat_interval)
-			label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
-					ghost_x + label_geo_w, ghost_y + label_geo_h) 
-
-			is_in_tile = False
-			if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
-				is_in_tile = True
-
-			#TODO: label_bboxes here!
-			self.render_pos_results(node, context, [], label_class, label_text, is_in_tile, label_geo_bbox)
+			shape = mapscript.shapeObj.fromWKT("MULTIPOLYGON EMPTY")
+			pos_results = self.position_poly_label(shape, node, label_width, label_height, label_geoms)
+			if(pos_results == None):
+				continue
+			self.render_pos_results(node, context, label_class, label_text, pos_results[0], pos_results[1])
 
 		return self.build_image(surface, node)
 
-
-	def render_normal(self, node):
+	def render_normal(self, node, label_geoms=None):
 		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 		#convert from a pixel buffer distance to an image buffer distance
 		x_scale = (node.max_x - node.min_x) / float(self.img_w) 
@@ -359,7 +357,10 @@ class LabelRenderer:
 		x_buffer = x_scale * self.tile_buffer
 		y_buffer = y_scale * self.tile_buffer
 
-		label_bboxes = []
+		if(label_geoms == None):
+			#encapsulate the geometry in a list becase we need the modifications to
+			#label_geoms from position_label
+			label_geoms = [mapscript.shapeObj(mapscript.MS_SHAPE_NULL)]
 
 		#hack to get the correct scale
 		self.mapfile.setExtent(node.min_x , node.min_y, node.max_x, node.max_y)
@@ -375,8 +376,7 @@ class LabelRenderer:
 			layer = self.mapfile.getLayerByName(layer_name)
 			for label_class in self.label_classes[layer_name]:
 				this_empty, this_leaf = \
-						self.render_class(node, scale_denom, layer, surface, label_class, label_bboxes)
-
+						self.render_class(node, scale_denom, layer, surface, label_class, label_geoms) 
 				if(not this_empty):
 					node.is_empty = False
 				if(not this_leaf):
