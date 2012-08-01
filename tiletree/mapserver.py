@@ -9,13 +9,15 @@ import tiletree
 import Image
 
 class MapServerRenderer(Renderer):
-	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0, min_zoom=0, max_zoom=19):
+	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0, min_zoom=0, max_zoom=19,
+			cache_fulls=True):
 		Renderer.__init__(self, img_w, img_h)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
 		self.img_buffer=img_buffer
 		self.min_zoom = min_zoom
 		self.max_zoom = max_zoom
+		self.cache_fulls=cache_fulls
 
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
@@ -107,7 +109,7 @@ class MapServerRenderer(Renderer):
 			if(self.blank_img_bytes == None):
 				self.blank_img_bytes = self.render_normal(node)[1]
 			return (self.blank_img_id, self.blank_img_bytes)
-		elif(node.is_full):
+		elif(node.is_full and self.cache_fulls):
 			if(self.full_img_bytes == None):
 				self.full_img_bytes = self.render_normal(node)[1]
 			return (self.full_img_id, self.full_img_bytes)
