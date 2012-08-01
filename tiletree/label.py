@@ -19,14 +19,16 @@ def bbox_check(label_bbox, tile_bbox):
 	return False
 
 class LabelClass:
-	def __init__(self, font='arial', font_size=12, mapserver_query="(1==1)", font_color=(0, 0, 0, 1),
-			min_zoom=0, max_zoom=19):
+	def __init__(self, font='arial', font_size=12, mapserver_query="(1==1)", font_color_fg=(0, 0, 0, 1),
+			font_color_bg=None, min_zoom=0, max_zoom=19, weight="normal"):
 		self.font = font
 		self.font_size = font_size
 		self.mapserver_query = mapserver_query
-		self.font_color = font_color
+		self.font_color_fg = font_color_fg
+		self.font_color_bg = font_color_bg
 		self.min_zoom = min_zoom
 		self.max_zoom = max_zoom
+		self.weight = weight
 
 	def to_dict(self):
 		return copy.copy(self.__dict__)
@@ -74,28 +76,39 @@ class LabelRenderer:
 			node.is_full = True
 			node.metadata = metadata
 
-	def render_label(self, context, label_text, img_x, img_y, img_max_x, img_max_y, label_class):
+	def draw_text(self, img_x, img_y, text, context):
 		context.move_to(img_x, img_y)
-		context.text_path(label_text)
-		context.fill()
+		context.text_path(text)
 
-		#TODO: XXX BLC testing
-		context.set_line_width(2)
-		context.move_to(img_x, img_y)
-		context.line_to(img_max_x, img_y)
-		context.line_to(img_max_x, img_max_y)
-		context.line_to(img_x, img_max_y)
-		context.line_to(img_x, img_y)
-		context.set_source_rgba(*label_class.font_color)
-		context.stroke()
+	def shadow_text(self, x, y, text, context, buffer_radius=2, radius_step = 1, n_sections=10):
+		radius = radius_step
+		while(radius < buffer_radius+radius_step):
+			f_radius = float(radius)
+			for s in range(n_sections):
+				rads = (2.0 * math.pi) * (s / float(n_sections))
+				x_shift,y_shift = math.cos(rads)*f_radius,math.sin(rads)*f_radius
+				self.draw_text(x+x_shift,y+y_shift,text, context)
+			radius += radius_step
+
+	def render_label(self, context, label_text, img_x, img_y, img_max_x, img_max_y, label_class):
+		if(label_class.font_color_bg != None):
+			context.set_source_rgba(*label_class.font_color_bg)
+			self.shadow_text(img_x, img_y, label_text, context)
+			context.fill()
+		context.set_source_rgba(*label_class.font_color_fg)
+		self.draw_text(img_x, img_y, label_text, context)
+		context.fill()
 
 	def get_label_size(self, surface, label_text, label_class):
 		context = cairo.Context(surface)
-		font_face = context.select_font_face(label_class.font, cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
+		weight = cairo.FONT_WEIGHT_NORMAL
+		if(label_class.weight == "bold"):
+			weight = cairo.FONT_WEIGHT_BOLD
+		font_face = context.select_font_face(label_class.font, cairo.FONT_SLANT_NORMAL, )
 		context.set_font_face(font_face)
 		context.set_font_size(label_class.font_size)
 		text_extents = context.text_extents(label_text)
-		width, height = text_extents[2], text_extents[3]
+		width, height = text_extents[4], text_extents[3]
 		return (context, width, height, label_text)
 
 	def build_image(self, surface, node):
