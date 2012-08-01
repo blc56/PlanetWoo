@@ -39,7 +39,7 @@ class LabelClass:
 class LabelRenderer:
 	def __init__(self, mapfile_string, storage_manager, label_col_index, mapserver_layers,
 			min_zoom=0, max_zoom=19, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
-			point_labels=False, point_buffer=4, position_attempts=4):
+			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=4):
 		self.mapfile = mapscript.fromstring(mapfile_string)
 		self.storage_manager = storage_manager
 		self.label_col_index = label_col_index
@@ -52,6 +52,7 @@ class LabelRenderer:
 		self.max_zoom = max_zoom
 		self.point_labels = point_labels
 		self.point_buffer = point_buffer
+		self.label_buffer = label_buffer
 		self.position_attempts = position_attempts
 		self.label_adjustment_max = (self.label_spacing / 2.0) - max(self.img_w, self.img_h)
 		if(self.label_adjustment_max < 0):
@@ -118,12 +119,12 @@ class LabelRenderer:
 		return (img_id, img_bytes)
 
 	#returns (is_in_tile, bbox)
-	def position_label(self, shape, node, label_width, label_height, label_geoms):
+	def position_label(self, shape, node, label_width, label_height):
 		if(self.point_labels):
-			return self.position_point_label(shape, node, label_width, label_height, label_geoms)
-		return self.position_poly_label(shape, node, label_width, label_height, label_geoms)
+			return self.position_point_label(shape, node, label_width, label_height)
+		return self.position_poly_label(shape, node, label_width, label_height)
 
-	def position_point_label(self, shape, node, label_width, label_height, label_geoms):
+	def position_point_label(self, shape, node, label_width, label_height):
 		seed_point = shape.getCentroid()
 
 		x_scale = (node.max_x - node.min_x) / float(self.img_w)
@@ -132,17 +133,21 @@ class LabelRenderer:
 		label_geo_h = label_height * y_scale * .5
 
 		#put the text to the right of the point
+		x_buffer = self.label_buffer * x_scale
+		y_buffer = self.label_buffer * y_scale
+		#x_buffer = 0
+		#y_buffer = 0
 		label_geo_bbox = (seed_point.x + (self.point_buffer * x_scale), seed_point.y - label_geo_h,
-				seed_point.x + label_geo_w * 2, seed_point.y + label_geo_h) 
+				seed_point.x + (label_geo_w * 2) + x_buffer, seed_point.y + label_geo_h + y_buffer) 
 
 		#make sure that this label doesnt intersect with any other labels
 		label_shape = mapscript.rectObj(*label_geo_bbox).toPolygon()
-		if(label_geoms[0].type != mapscript.MS_SHAPE_NULL):
-			if(label_shape.intersects(label_geoms[0])):
+		if(node.label_geoms != None):
+			if(label_shape.intersects(node.label_geoms)):
 				return None
-			label_geoms[0] = label_geoms[0].Union(label_shape)
+			node.label_geoms =label_shape.Union(node.label_geoms)
 		else:
-			label_geoms[0] = label_shape
+			node.label_geoms = label_shape
 
 		is_in_tile = False
 		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
@@ -165,7 +170,7 @@ class LabelRenderer:
 		wkt = 'MULTILINESTRING((%(min_x)s %(y_pos)s, %(max_x)s %(y_pos)s))'
 		return mapscript.shapeObj.fromWKT(wkt % {'min_x':min_x, 'max_x':max_x, 'y_pos':y_pos})
 
-	def position_poly_label(self, shape, node, label_width, label_height, label_geoms):
+	def position_poly_label(self, shape, node, label_width, label_height):
 		x_scale = (node.max_x - node.min_x) / float(self.img_w)
 		y_scale = (node.max_y - node.min_y) / float(self.img_h)
 		label_geo_w = label_width * x_scale * .5
@@ -199,10 +204,11 @@ class LabelRenderer:
 			label_line = self.build_label_line(y_pos, min_label_x, max_label_x)
 			#make sure the label is contained by its corresponding geometry
 			label_line = label_line.intersection(shape)
+			if(not label_line):
+				continue
 			#make sure the label doesn't collided with any other labels
-			if(label_geoms[0].type != mapscript.MS_SHAPE_NULL):
-				label_line = label_line.difference(label_geoms[0])
-
+			if(node.label_geoms != None):
+				label_line = label_line.difference(node.label_geoms)
 			if(not label_line):
 				continue
 
@@ -230,14 +236,16 @@ class LabelRenderer:
 		if(not good_position):
 			return None
 
+		x_buffer = self.label_buffer * x_scale
+		y_buffer = self.label_buffer * y_scale
 		label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
-				ghost_x + label_geo_w, ghost_y + label_geo_h) 
+				ghost_x + label_geo_w + x_buffer, ghost_y + label_geo_h + y_buffer) 
 
 		label_shape = mapscript.rectObj(*label_geo_bbox).toPolygon()
-		if(label_geoms[0].type != mapscript.MS_SHAPE_NULL):
-			label_geoms[0] = label_geoms[0].Union(label_shape)
+		if(node.label_geoms != None):
+			node.label_geoms =label_shape.Union(node.label_geoms)
 		else:
-			label_geoms[0] = label_shape
+			node.label_geoms = label_shape
 
 		is_in_tile = False
 		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
@@ -257,7 +265,7 @@ class LabelRenderer:
 		self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
 
 	#return (is_empty, is_leaf)
-	def render_class(self, node, scale_denom, layer, surface, label_class, label_geoms):
+	def render_class(self, node, scale_denom, layer, surface, label_class):
 		#check for the scale
 		if(node.zoom_level > label_class.max_zoom):
 			return (True, True)
@@ -290,7 +298,7 @@ class LabelRenderer:
 				#continue
 			#print label_text
 
-			pos_results = self.position_label(shape, node, label_width, label_height, label_geoms)
+			pos_results = self.position_label(shape, node, label_width, label_height)
 
 			if(node.is_full):
 				node.metadata = json.dumps({
@@ -315,15 +323,11 @@ class LabelRenderer:
 			return self.render_full_poly(node)
 		return self.render_normal(node)
 
-	def render_full_poly(self, node, label_geoms=None):
+	def render_full_poly(self, node):
 		node.is_full = True
 		node.is_empty = True
 		if(node.zoom_level > self.max_zoom):
 			node.is_leaf = True
-		if(label_geoms == None):
-			#encapsulate the geometry in a list becase we need the modifications to
-			#label_geoms from position_poly_label
-			label_geoms = [mapscript.shapeObj(mapscript.MS_SHAPE_NULL)]
 
 		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 		metadata = json.loads(node.metadata)
@@ -342,25 +346,20 @@ class LabelRenderer:
 
 			context, label_width, label_height, label_text = self.get_label_size(surface, label_text, label_class)
 			shape = mapscript.shapeObj.fromWKT("MULTIPOLYGON EMPTY")
-			pos_results = self.position_poly_label(shape, node, label_width, label_height, label_geoms)
+			pos_results = self.position_poly_label(shape, node, label_width, label_height)
 			if(pos_results == None):
 				continue
 			self.render_pos_results(node, context, label_class, label_text, pos_results[0], pos_results[1])
 
 		return self.build_image(surface, node)
 
-	def render_normal(self, node, label_geoms=None):
+	def render_normal(self, node):
 		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 		#convert from a pixel buffer distance to an image buffer distance
 		x_scale = (node.max_x - node.min_x) / float(self.img_w) 
 		y_scale = (node.max_y - node.min_y) / float(self.img_h)
 		x_buffer = x_scale * self.tile_buffer
 		y_buffer = y_scale * self.tile_buffer
-
-		if(label_geoms == None):
-			#encapsulate the geometry in a list becase we need the modifications to
-			#label_geoms from position_label
-			label_geoms = [mapscript.shapeObj(mapscript.MS_SHAPE_NULL)]
 
 		#hack to get the correct scale
 		self.mapfile.setExtent(node.min_x , node.min_y, node.max_x, node.max_y)
@@ -376,7 +375,7 @@ class LabelRenderer:
 			layer = self.mapfile.getLayerByName(layer_name)
 			for label_class in self.label_classes[layer_name]:
 				this_empty, this_leaf = \
-						self.render_class(node, scale_denom, layer, surface, label_class, label_geoms) 
+						self.render_class(node, scale_denom, layer, surface, label_class) 
 				if(not this_empty):
 					node.is_empty = False
 				if(not this_leaf):
@@ -385,6 +384,14 @@ class LabelRenderer:
 		if(not node.is_full):
 			if(node.is_empty and is_leaf):
 				node.is_leaf = True
+
+		#update node metadata with label_geoms
+		#TODO: save label_geoms somehow
+		#metadata = {}
+		#if(node.metadata):
+			#metadata = json.loads(node.metadata)
+		#metadata['label_geoms'] = label_geoms[0].toWKT()
+		#node.metadata = json.dumps(metadata)
 
 		return self.build_image(surface, node)
 

@@ -25,11 +25,13 @@ class TileCompositor:
 		return self.fetch_helper(tile_generator)
 
 	def dynamic_fetch(self, zoom_level, x, y, layers):
-		tile_generator = (self.fetch_render(zoom_level, x, y, self.render_infos[l], self.extent)
+		#use a list to preserve side effects
+		label_geoms = [None]
+		tile_generator = (self.fetch_render(zoom_level, x, y, self.render_infos[l], self.extent, label_geoms)
 			for l in layers)
 		return self.fetch_helper(tile_generator)
 
-	def fetch_render(self, zoom_level, x, y, render_info, extent):
+	def fetch_render(self, zoom_level, x, y, render_info, extent, label_geoms):
 		if((render_info.start_zoom != None and render_info.start_zoom > zoom_level) or
 				(render_info.stop_zoom != None and render_info.stop_zoom < zoom_level) ):
 			return None
@@ -42,12 +44,13 @@ class TileCompositor:
 			bbox = tiletree.tile_coord_to_bbox(zoom_level, x, y, extent)
 			geom = cutter.cut(bbox[0], bbox[1], bbox[2], bbox[3])
 			node = tiletree.QuadTreeGenNode(None,  bbox[0], bbox[1], bbox[2], bbox[3], zoom_level, None,
-				geom=geom, tile_x=x, tile_y=y)
+				geom=geom, tile_x=x, tile_y=y, label_geoms=label_geoms[0])
 			renderer.tile_info(node, check_full=render_info.check_full)
 			img_bytes = renderer.render(node)[1]
 			storage_manager.store_node(node)
 			storage_manager.store_image(node, img_bytes)
 			storage_manager.flush()
+			label_geoms[0] = node.label_geoms
 			return StringIO.StringIO(img_bytes.getvalue())
 
 	def fetch_helper(self, tile_generator):
