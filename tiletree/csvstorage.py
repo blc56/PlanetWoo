@@ -6,7 +6,7 @@ import shapely.wkt
 class CSVStorageManager:
 	def __init__(self, tree_file, image_file=None,
 			fields=['node_id', 'zoom_level', 'tile_x', 'tile_y', 'image_id', 'is_leaf', 'is_blank',
-				'is_full'], img_w=256, img_h=256):
+				'is_full', 'metadata'], img_w=256, img_h=256):
 		self.tree_file = tree_file
 		self.image_file = image_file
 		self.fields = fields

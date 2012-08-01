@@ -11,15 +11,16 @@ import tiletree.postgres
 import tiletree.composite
 
 class TileFetcher(tornado.web.RequestHandler):
-	def initialize(self, storage_manager):
+	def initialize(self, storage_manager, layers):
 		self.storage_manager = storage_manager
+		self.layers = layers
 
 	def get(self, zoom_level, x, y):
 		zoom_level = int(zoom_level)
 		x = int(x)
 		y = int(y)
 
-		img_file = self.storage_manager.fetch(zoom_level, x, y)
+		img_file = self.storage_manager.fetch(zoom_level, x, y, self.layers)
 		self.set_header('Content-Type', 'image/png')
 		self.write(img_file.read())
 
@@ -37,16 +38,19 @@ def main():
 
 	port = int(args.port)
 
-	storage_managers =[]
+	render_info_dict = {}
+	render_layers = []
 	for layer in args.layers:
 		tree_table, image_table = layer.split(',')
-		storage_managers.append(tiletree.postgres.PostgresStorageManager(args.conn_str, tree_table, image_table))
+		storage_manager = tiletree.postgres.PostgresStorageManager(args.conn_str, tree_table, image_table)
+		render_info_dict[tree_table] = tiletree.composite.RenderInfo(storage_manager, None, None, False)
+		render_layers.append(tree_table)
 
-	compositor = tiletree.composite.TileCompositor(storage_managers)
+	compositor = tiletree.composite.TileCompositor(render_info_dict)
 
 	app = tornado.web.Application([
 		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, TileFetcher,
-			{'storage_manager':compositor}),
+			{'storage_manager':compositor, 'layers':render_layers}),
 	])
 
 	app.listen(port, address=args.bind_address)

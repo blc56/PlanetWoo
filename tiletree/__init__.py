@@ -398,7 +398,7 @@ class GeneratorJob:
 		self.check_full = check_full
 
 def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom=None, check_full=True):
-	if(start_checks_zoom != None and node.zoom_level >= start_checks_zoom):
+	if(start_checks_zoom == None or node.zoom_level >= start_checks_zoom):
 		#is this node a leaf?
 		renderer.tile_info(node, check_full)
 
