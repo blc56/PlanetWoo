@@ -37,11 +37,10 @@ class LabelClass:
 		self.__dict__.update(in_dict)
 
 class LabelRenderer:
-	def __init__(self, mapfile_string, storage_manager, label_col_index, mapserver_layers,
+	def __init__(self, mapfile_string, label_col_index, mapserver_layers,
 			min_zoom=0, max_zoom=19, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
 			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=4):
 		self.mapfile = mapscript.fromstring(mapfile_string)
-		self.storage_manager = storage_manager
 		self.label_col_index = label_col_index
 		self.mapserver_layers = mapserver_layers
 		self.label_spacing = label_spacing
@@ -64,18 +63,7 @@ class LabelRenderer:
 		layer_classes.append(label_class)
 
 	def tile_info(self, node, check_full=True):
-		if(self.storage_manager == None or not check_full):
-			return
-
-		try:
-			result = self.storage_manager.fetch_info(node.zoom_level, node.tile_x, node.tile_y)
-		except tiletree.TileNotFoundException:
-			return
-
-		is_blank, is_full, is_leaf, metadata = result
-		if(is_full):
-			node.is_full = True
-			node.metadata = metadata
+		pass
 
 	def draw_text(self, img_x, img_y, text, context):
 		context.move_to(img_x, img_y)
@@ -181,10 +169,6 @@ class LabelRenderer:
 		#this crashes :(
 		#shape = shape.simplify(min(x_scale, y_scale))
 
-		tile_shape = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y).toPolygon()
-		if(shape.contains(tile_shape)):
-			node.is_full = True
-
 		seed_point = shape.getCentroid()
 		ghost_x, ghost_y  = self.find_poly_label_ghost(seed_point.x, seed_point.y, node,
 				x_repeat_interval,  y_repeat_interval)
@@ -264,17 +248,26 @@ class LabelRenderer:
 
 		self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
 
-	#return (is_empty, is_leaf)
+	#return (is_blank, is_leaf)
 	def render_class(self, node, scale_denom, layer, surface, label_class):
 		#check for the scale
 		if(node.zoom_level > label_class.max_zoom):
 			return (True, True)
 		if(node.zoom_level < label_class.min_zoom):
-			return (True, False)
+			#we know we aren't going to render this label class, but check to see if
+			#this node would contain any features
+			layer.queryByAttributes(self.mapfile, '', label_class.mapserver_query, mapscript.MS_SINGLE)
+			layer.open()
+			num_results = layer.getNumResults()
+			layer.close()
+			if(num_results > 0):
+				return (True, False)
+			return (True, True)
+
 		if(label_class.mapserver_query == None):
 			label_class.mapserver_query = "(1 == 1)"
 
-		is_empty = True
+		is_blank = True
 		is_leaf = True
 
 		layer.queryByAttributes(self.mapfile, '', label_class.mapserver_query, mapscript.MS_MULTIPLE)
@@ -291,21 +284,10 @@ class LabelRenderer:
 			if(not self.mapfile.extent.toPolygon().intersects(shape)):
 				continue
 
-			is_empty = False
+			is_blank = False
 			is_leaf = False
 
-			#if(label_text != 'Stafford'):
-				#continue
-			#print label_text
-
 			pos_results = self.position_label(shape, node, label_width, label_height)
-
-			if(node.is_full):
-				node.metadata = json.dumps({
-					'label_text': label_text,
-					'seed_point': [shape.getCentroid().x, shape.getCentroid().y],
-					'layer_name': layer.name
-				})
 
 			if(pos_results == None):
 				continue
@@ -316,42 +298,10 @@ class LabelRenderer:
 
 		self.mapfile.freeQuery()
 
-		return (is_empty, is_leaf)
+		return (is_blank, is_leaf)
 
 	def render(self, node):
-		if(not self.point_labels and node.is_full):
-			return self.render_full_poly(node)
 		return self.render_normal(node)
-
-	def render_full_poly(self, node):
-		node.is_full = True
-		node.is_empty = True
-		if(node.zoom_level > self.max_zoom):
-			node.is_leaf = True
-
-		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
-		metadata = json.loads(node.metadata)
-		label_text = metadata['label_text']
-		seed_point_x, seed_point_y = metadata['seed_point']
-		x_scale = (node.max_x - node.min_x) / float(self.img_w)
-		y_scale = (node.max_y - node.min_y) / float(self.img_h)
-		x_repeat_interval = self.label_spacing * x_scale
-		y_repeat_interval = self.label_spacing * y_scale
-
-		for label_class in self.label_classes[metadata['layer_name']]:
-			if(node.zoom_level > label_class.max_zoom):
-				continue
-			if(node.zoom_level < label_class.min_zoom):
-				continue
-
-			context, label_width, label_height, label_text = self.get_label_size(surface, label_text, label_class)
-			shape = mapscript.shapeObj.fromWKT("MULTIPOLYGON EMPTY")
-			pos_results = self.position_poly_label(shape, node, label_width, label_height)
-			if(pos_results == None):
-				continue
-			self.render_pos_results(node, context, label_class, label_text, pos_results[0], pos_results[1])
-
-		return self.build_image(surface, node)
 
 	def render_normal(self, node):
 		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
@@ -368,30 +318,18 @@ class LabelRenderer:
 			self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
 					node.max_x + x_buffer, node.max_y + y_buffer)
 
-		node.is_empty = True
-		is_leaf = True
+		node.is_blank = True
+		node.is_leaf = True
 
 		for layer_name in self.mapserver_layers:
 			layer = self.mapfile.getLayerByName(layer_name)
 			for label_class in self.label_classes[layer_name]:
-				this_empty, this_leaf = \
+				this_blank, this_leaf = \
 						self.render_class(node, scale_denom, layer, surface, label_class) 
-				if(not this_empty):
-					node.is_empty = False
+				if(not this_blank):
+					node.is_blank = False
 				if(not this_leaf):
-					is_leaf = False
-
-		if(not node.is_full):
-			if(node.is_empty and is_leaf):
-				node.is_leaf = True
-
-		#update node metadata with label_geoms
-		#TODO: save label_geoms somehow
-		#metadata = {}
-		#if(node.metadata):
-			#metadata = json.loads(node.metadata)
-		#metadata['label_geoms'] = label_geoms[0].toWKT()
-		#node.metadata = json.dumps(metadata)
+					node.is_leaf = False
 
 		return self.build_image(surface, node)
 

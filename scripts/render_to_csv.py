@@ -40,7 +40,7 @@ def load_renderer(config):
 			cache_fulls=config.get('cache_fulls', True))
 
 	elif(renderer_type == 'label'):
-		renderer = tiletree.label.LabelRenderer(open(config['mapfile_path'],'r').read(), None,
+		renderer = tiletree.label.LabelRenderer(open(config['mapfile_path'],'r').read(),
 			config.get('label_col_index', None), config['mapserver_layers'], point_labels=config.get('point_labels', False))
 		load_label_classes(config, renderer)
 		return renderer

@@ -87,6 +87,7 @@ def create_machine_jobs(global_config):
 
 @parallel
 def update_planetwoo(prefix="/opt/planetwoo"):
+	return
 	with cd('%s/PlanetWoo/' % prefix):
 		sudo('git pull')
 @parallel

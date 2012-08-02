@@ -4,8 +4,9 @@ import StringIO
 import tiletree
 
 class RenderInfo:
-	def __init__(self, storage_manager, renderer, cutter, check_full, start_zoom=None,
+	def __init__(self, name, storage_manager, renderer, cutter, check_full, start_zoom=None,
 			stop_zoom=None, label_col_index=None):
+		self.name = name
 		self.storage_manager = storage_manager
 		self.renderer = renderer
 		self.cutter = cutter
@@ -24,14 +25,19 @@ class TileCompositor:
 				for l in layers )
 		return self.fetch_helper(tile_generator)
 
+
+
 	def dynamic_fetch(self, zoom_level, x, y, layers):
 		#use a list to preserve side effects
 		label_geoms = [None]
-		tile_generator = (self.fetch_render(zoom_level, x, y, self.render_infos[l], self.extent, label_geoms)
-			for l in layers)
+		#we call fetch_render() for _every_ layer in self.render_infos
+		#we want to render every layer, even if they aren't all going to be returned so that interlayer dependencies
+		#are preserved (think labels...)
+		tile_generator = (self.fetch_render(zoom_level, x, y, self.render_infos[l], self.extent, label_geoms, layers)
+			for l in self.render_infos)
 		return self.fetch_helper(tile_generator)
 
-	def fetch_render(self, zoom_level, x, y, render_info, extent, label_geoms):
+	def fetch_render(self, zoom_level, x, y, render_info, extent, label_geoms, layers):
 		if((render_info.start_zoom != None and render_info.start_zoom > zoom_level) or
 				(render_info.stop_zoom != None and render_info.stop_zoom < zoom_level) ):
 			return None
@@ -39,7 +45,10 @@ class TileCompositor:
 		renderer = render_info.renderer
 		cutter = render_info.cutter
 		try:
-			return storage_manager.fetch(zoom_level, x, y)
+			result =  storage_manager.fetch(zoom_level, x, y)
+			if(render_info.name in layers):
+				return result
+			return None
 		except tiletree.TileNotFoundException:
 			bbox = tiletree.tile_coord_to_bbox(zoom_level, x, y, extent)
 			geom = cutter.cut(bbox[0], bbox[1], bbox[2], bbox[3])
@@ -51,7 +60,9 @@ class TileCompositor:
 			storage_manager.store_image(node, img_bytes)
 			storage_manager.flush()
 			label_geoms[0] = node.label_geoms
-			return StringIO.StringIO(img_bytes.getvalue())
+			if(render_info.name in layers):
+				return StringIO.StringIO(img_bytes.getvalue())
+			return None
 
 	def fetch_helper(self, tile_generator):
 		#TODO: use imagemagick to see if paletting is faster

@@ -38,7 +38,7 @@ def load_config(config_path, conn_str):
 
 		storage_manager = tiletree.postgres.PostgresStorageManager(conn_str, layer['tree_table'],
 			layer['image_table'])
-		render_infos[layer_name] = tiletree.composite.RenderInfo(storage_manager, renderer, cutter,
+		render_infos[layer_name] = tiletree.composite.RenderInfo(layer_name, storage_manager, renderer, cutter,
 			layer.get('check_full', True), layer.get('start_zoom', None), layer.get('stop_zoom', None))
 
 		if(layer.get('renderer_type', '') == 'label'):

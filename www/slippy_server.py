@@ -43,7 +43,7 @@ def main():
 	for layer in args.layers:
 		tree_table, image_table = layer.split(',')
 		storage_manager = tiletree.postgres.PostgresStorageManager(args.conn_str, tree_table, image_table)
-		render_info_dict[tree_table] = tiletree.composite.RenderInfo(storage_manager, None, None, False)
+		render_info_dict[tree_table] = tiletree.composite.RenderInfo(layer, storage_manager, None, None, False)
 		render_layers.append(tree_table)
 
 	compositor = tiletree.composite.TileCompositor(render_info_dict)
