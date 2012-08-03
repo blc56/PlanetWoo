@@ -39,7 +39,7 @@ class LabelClass:
 class LabelRenderer:
 	def __init__(self, mapfile_string, label_col_index, mapserver_layers,
 			min_zoom=0, max_zoom=19, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
-			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=4):
+			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=0):
 		self.mapfile = mapscript.fromstring(mapfile_string)
 		self.label_col_index = label_col_index
 		self.mapserver_layers = mapserver_layers
@@ -88,6 +88,14 @@ class LabelRenderer:
 		self.draw_text(img_x, img_y, label_text, context)
 		context.fill()
 
+		#context.move_to(img_x, img_y)
+		#context.line_to(img_max_x, img_y)
+		#context.line_to(img_max_x, img_max_y)
+		#context.line_to(img_x, img_max_y)
+		#context.line_to(img_x, img_y)
+		#context.set_source_rgba(1, 0, 0, 1)
+		#context.stroke()
+
 	def get_label_size(self, surface, label_text, label_class):
 		context = cairo.Context(surface)
 		weight = cairo.FONT_WEIGHT_NORMAL
@@ -97,7 +105,7 @@ class LabelRenderer:
 		context.set_font_face(font_face)
 		context.set_font_size(label_class.font_size)
 		text_extents = context.text_extents(label_text)
-		width, height = text_extents[4], text_extents[3]
+		width, height = text_extents[4] + text_extents[0], text_extents[3]
 		return (context, width, height, label_text)
 
 	def build_image(self, surface, node):
@@ -165,6 +173,8 @@ class LabelRenderer:
 		label_geo_h = label_height * y_scale * .5
 		x_repeat_interval = self.label_spacing * x_scale
 		y_repeat_interval = self.label_spacing * y_scale
+		x_buffer = self.label_buffer * x_scale
+		y_buffer = self.label_buffer * y_scale
 
 		#this crashes :(
 		#shape = shape.simplify(min(x_scale, y_scale))
@@ -203,8 +213,14 @@ class LabelRenderer:
 				min_x = min(line.get(0).x, line.get(1).x)
 				max_x = max(line.get(0).x, line.get(1).x)
 				if((max_x - min_x) >= (label_geo_w * 2)):
-					ghost_x = (max_x + min_x) / 2.0
-					ghost_y = y_pos
+					#do a final check that considers the height of the label
+					x_pos = (max_x + min_x) / 2.0
+					label_geo_bbox = (x_pos - label_geo_w, y_pos - label_geo_h,
+							x_pos + label_geo_w + x_buffer, y_pos + label_geo_h + y_buffer) 
+					label_shape = mapscript.rectObj(*label_geo_bbox).toPolygon()
+					if(node.label_geoms != None):
+						if(label_shape.intersects(node.label_geoms)):
+							continue
 					good_position = True
 					break
 
@@ -220,12 +236,6 @@ class LabelRenderer:
 		if(not good_position):
 			return None
 
-		x_buffer = self.label_buffer * x_scale
-		y_buffer = self.label_buffer * y_scale
-		label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
-				ghost_x + label_geo_w + x_buffer, ghost_y + label_geo_h + y_buffer) 
-
-		label_shape = mapscript.rectObj(*label_geo_bbox).toPolygon()
 		if(node.label_geoms != None):
 			node.label_geoms =label_shape.Union(node.label_geoms)
 		else:
