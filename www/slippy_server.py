@@ -46,7 +46,8 @@ def main():
 		render_info_dict[tree_table] = tiletree.composite.RenderInfo(layer, storage_manager, None, None, False)
 		render_layers.append(tree_table)
 
-	compositor = tiletree.composite.TileCompositor(render_info_dict)
+
+	compositor = tiletree.composite.TileCompositor(render_info_dict, render_layers)
 
 	app = tornado.web.Application([
 		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, TileFetcher,

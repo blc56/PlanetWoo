@@ -16,9 +16,10 @@ class RenderInfo:
 		self.label_col_index = label_col_index
 
 class TileCompositor:
-	def __init__(self, render_info_dict, extent=(0, 0, 0, 0)):
+	def __init__(self, render_info_dict, layer_order, extent=(0, 0, 0, 0)):
 		self.render_infos = render_info_dict
 		self.extent = extent
+		self.layer_order = layer_order
 
 	def fetch(self, zoom_level, x, y, layers):
 		tile_generator = ( self.render_infos[l].storage_manager.fetch(zoom_level, x, y)
@@ -34,7 +35,7 @@ class TileCompositor:
 		#we want to render every layer, even if they aren't all going to be returned so that interlayer dependencies
 		#are preserved (think labels...)
 		tile_generator = (self.fetch_render(zoom_level, x, y, self.render_infos[l], self.extent, label_geoms, layers)
-			for l in self.render_infos)
+			for l in self.layer_order)
 		return self.fetch_helper(tile_generator)
 
 	def fetch_render(self, zoom_level, x, y, render_info, extent, label_geoms, layers):

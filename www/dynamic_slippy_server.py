@@ -47,7 +47,7 @@ def load_config(config_path, conn_str):
 		#TODO: XXX BLC TESTING
 		storage_manager.recreate_tables()
 
-	return (tiletree.composite.TileCompositor(render_infos, config['extent']), config['layer_order'])
+	return (tiletree.composite.TileCompositor(render_infos, config['layer_order'], config['extent']), config['layer_order'])
 
 def main():
 	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")
