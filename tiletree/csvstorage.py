@@ -38,13 +38,13 @@ class CSVStorageManager:
 	def store_image(self, node, img_bytes):
 		if(self.image_file == None):
 			return
-		if(node.is_blank):
+		if(node.is_blank and node.image_id == self.blank_img_id):
 			#we've already stored the blank image
 			if(self.blank_img_id != None):
 				return
 			#we haven't stored the blank image yes
 			self.blank_img_id = node.image_id
-		elif(node.is_full):
+		elif(node.is_full and node.image_id == self.full_img_id):
 			#we've already stored the full image
 			if(self.full_img_id != None):
 				return

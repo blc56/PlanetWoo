@@ -63,7 +63,9 @@ class LabelRenderer:
 		layer_classes.append(label_class)
 
 	def tile_info(self, node, check_full=True):
-		pass
+		node.is_blank = False
+		node.is_leaf = False
+		node.is_full = False
 
 	def draw_text(self, img_x, img_y, text, context):
 		context.move_to(img_x, img_y)
@@ -330,6 +332,7 @@ class LabelRenderer:
 
 		node.is_blank = True
 		node.is_leaf = True
+		node.is_full = False
 
 		for layer_name in self.mapserver_layers:
 			layer = self.mapfile.getLayerByName(layer_name)

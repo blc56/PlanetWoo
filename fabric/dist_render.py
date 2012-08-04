@@ -39,10 +39,21 @@ def create_machine_jobs(global_config):
 
 	fill_to_zoom_level = jobs[0].zoom_level - 1
 
-	mapfile_path = os.path.join(global_config['data_file_dest'],
-		os.path.basename(global_config['mapfile_path']))
-	shapefile_path = os.path.join(global_config['data_file_dest'],
-		os.path.basename(global_config['shapefile_path']))
+	if(not isinstance(global_config['mapfile_path'], list)):
+		global_config['mapfile_path'] = [local_mapfile_path]
+	if(not isinstance(global_config['shapefile_path'], list)):
+		global_config['shapefile_path'] = [local_shapefile_path]
+
+	mapfile_path = []
+	shapefile_path = []
+
+	for path in global_config['mapfile_path']:
+		mapfile_path.append(os.path.join(global_config['data_file_dest'],
+			os.path.basename(path)))
+
+	for path in global_config['shapefile_path']:
+		shapefile_path.append(os.path.join(global_config['data_file_dest'],
+			os.path.basename(path)))
 
 	jobs_per_thread = int(math.ceil(len(jobs) / float(total_num_threads)))
 
@@ -95,9 +106,21 @@ def copy_data_files(render_node_config):
 	#copy over mapfile, shapefile, and render config files
 	sudo('mkdir -p %s' % render_node_config['data_file_dest'])
 	sudo('chown %(user)s:%(user)s %(path)s' % {'user':env.user, 'path':render_node_config['data_file_dest']})
-	put(render_node_config['local_mapfile_path'], render_node_config['data_file_dest'])
-	shapefile_root = os.path.splitext(render_node_config['local_shapefile_path'])[0]
-	put(shapefile_root + '.*', render_node_config['data_file_dest'])
+
+	local_mapfile_path = render_node_config['local_mapfile_path']
+	local_shapefile_path = render_node_config['local_shapefile_path']
+
+	if(not isinstance(local_mapfile_path, list)):
+		local_mapfile_path = [local_mapfile_path]
+	if(not isinstance(local_shapefile_path, list)):
+		local_shapefile_path = [local_shapefile_path]
+
+	for path in local_mapfile_path:
+		put(path, render_node_config['data_file_dest'])
+
+	for path in local_shapefile_path:
+		shapefile_root = os.path.splitext(path)[0]
+		put(shapefile_root + '.*', render_node_config['data_file_dest'])
 
 	tmp_config_bytes = StringIO.StringIO()
 	tmp_config_bytes.write(json.dumps(render_node_config))
