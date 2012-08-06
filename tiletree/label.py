@@ -117,21 +117,72 @@ class LabelRenderer:
 			radius += radius_step
 
 	def render_label(self, context, label_text, img_x, img_y, img_max_x, img_max_y, label_class):
-		if(label_class.font_color_bg != None):
-			context.set_source_rgba(*label_class.font_color_bg)
-			self.shadow_text(img_x, img_y, label_text, context)
+		x_pos = img_x
+		y_pos = img_y
+		lines = label_text.splitlines()
+		lines.reverse()
+		y_inc = (img_max_y - img_y) / float(len(lines))
+		for line in lines:
+			if(label_class.font_color_bg != None):
+				context.set_source_rgba(*label_class.font_color_bg)
+				self.shadow_text(x_pos, y_pos, line, context)
+				context.fill()
+			context.set_source_rgba(*label_class.font_color_fg)
+			self.draw_text(x_pos, y_pos, line, context)
 			context.fill()
-		context.set_source_rgba(*label_class.font_color_fg)
-		self.draw_text(img_x, img_y, label_text, context)
-		context.fill()
 
-		#context.move_to(img_x, img_y)
-		#context.line_to(img_max_x, img_y)
-		#context.line_to(img_max_x, img_max_y)
-		#context.line_to(img_x, img_max_y)
-		#context.line_to(img_x, img_y)
-		#context.set_source_rgba(1, 0, 0, 1)
-		#context.stroke()
+			y_pos += y_inc
+
+		context.move_to(img_x, img_y)
+		context.line_to(img_max_x, img_y)
+		context.line_to(img_max_x, img_max_y)
+		context.line_to(img_x, img_max_y)
+		context.line_to(img_x, img_y)
+		context.set_source_rgba(1, 0, 0, 1)
+		context.stroke()
+
+	def get_line_size(self, context, label_text):
+		text_extents = context.text_extents(label_text)
+		width, height = text_extents[4] + text_extents[0], text_extents[3]
+		return width, height
+
+	def split_label(self, context, label_text):
+		label_text = label_text.strip()
+		#find all spaces in the label
+		start = 0
+		# a list of (distance_from_center, pos)
+		split_pos = []
+		center = len(label_text) / 2
+		#TODO: add regex support for 'split characters'
+		#so users can configure characters to split on
+		while(True):
+			pos = label_text.find(' ', start)
+			if(pos < 0):
+				break
+			split_pos.append((center - pos, pos))
+			start = pos + 1
+
+		#try splitting
+		if(len(split_pos) == 0):
+			#we failed
+			return label_text
+
+		#split on the split char closest to the center of the line
+		split = split_pos[0][1]
+		label_text = label_text[0:split] + '\n' + label_text[split:]
+		new_label = ''
+		for line in label_text.splitlines():
+			this_width, this_height = self.get_line_size(context, line)
+
+			#if this line was too big, attempt to recurse and split it again
+			new_line = line
+			if(this_width > self.tile_buffer):
+				new_line = self.split_label(context, line)
+
+			new_label += new_line.strip() + '\n'
+
+		return new_label.strip()
+			
 
 	def get_label_size(self, surface, label_text, label_class):
 		context = cairo.Context(surface)
@@ -141,8 +192,19 @@ class LabelRenderer:
 		font_face = context.select_font_face(label_class.font, cairo.FONT_SLANT_NORMAL, )
 		context.set_font_face(font_face)
 		context.set_font_size(label_class.font_size)
-		text_extents = context.text_extents(label_text)
-		width, height = text_extents[4] + text_extents[0], text_extents[3]
+		width, height = self.get_line_size(context, label_text)
+
+		#if the label is too long, split it
+		#and calculate the new label size
+		if(width > self.tile_buffer):
+			label_text = self.split_label(context, label_text)
+			width = 0
+			height = 0
+			for line in label_text.splitlines():
+				this_width, this_height = self.get_line_size(context, line)
+				width = max(this_width, width)
+				height += this_height
+
 		return (context, width, height, label_text)
 
 	def build_image(self, surface, node):
