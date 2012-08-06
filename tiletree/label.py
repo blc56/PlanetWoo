@@ -347,7 +347,7 @@ class LabelRenderer:
 
 		return (is_blank, is_leaf)
 
-	def render_blank(self):
+	def render_blank(self, node):
 		if(self.blank_img_bytes == None):
 			surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 			self.blank_img_bytes = self.build_image(surface, node)[1]
@@ -355,7 +355,7 @@ class LabelRenderer:
 
 	def render(self, node):
 		if(node.is_blank):
-			return self.render_blank(self)
+			return self.render_blank(node)
 
 		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
 
