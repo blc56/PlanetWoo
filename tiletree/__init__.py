@@ -379,13 +379,14 @@ class QuadTreeGenStats:
 		return (time.time() - self.start_time) 
 
 	def time_est(self):
-		return 0
 		#calculate the expected number of nodes that will be rendered based on what we have
 		#rendered so far
 		est_node_count = 0
 		cumulative_prob = 0
 		for z in range(self.stop_zoom + 1):
-			this_prob = (1 - cumulative_prob) * (self.leafs_rendered[z] /float(self.nodes_rendered[z]))
+			this_prob = 0
+			if(self.nodes_rendered[z] != 0):
+				this_prob = (1 - cumulative_prob) * (self.leafs_rendered[z] /float(self.nodes_rendered[z]))
 			est_node_count += (4**z) * (this_prob)
 			cumulative_prob += this_prob
 
