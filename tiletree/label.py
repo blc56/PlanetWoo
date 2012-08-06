@@ -38,7 +38,7 @@ class LabelClass:
 
 class LabelRenderer:
 	def __init__(self, mapfile_string, label_col_index, mapserver_layers,
-			min_zoom=0, max_zoom=19, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
+			min_zoom=0, max_zoom=100, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
 			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=0):
 		self.mapfile = mapscript.fromstring(mapfile_string)
 		self.label_col_index = label_col_index
@@ -57,6 +57,7 @@ class LabelRenderer:
 		if(self.label_adjustment_max < 0):
 			raise Exception("Bad parameters")
 		self.label_classes = {}
+		self.blank_img_bytes = None
 
 	def add_label_class(self, layer_name, label_class):
 		layer_classes = self.label_classes.setdefault(layer_name, [])
@@ -66,6 +67,40 @@ class LabelRenderer:
 		node.is_blank = False
 		node.is_leaf = False
 		node.is_full = False
+
+		if(node.zoom_level < self.min_zoom):
+			#we know this is going to be a blank node
+			node.is_blank = True
+
+			x_scale = (node.max_x - node.min_x) / float(self.img_w) 
+			y_scale = (node.max_y - node.min_y) / float(self.img_h)
+			x_buffer = x_scale * self.tile_buffer
+			y_buffer = y_scale * self.tile_buffer
+
+			#check if this is going to be a leaf node
+			if(self.point_labels):
+				rect = mapscript.rectObj(node.min_x - x_buffer, node.min_y - y_buffer,
+							node.max_x + x_buffer, node.max_y + y_buffer)
+			else:
+				rect = mapscript.rectObj(node.min_x, node.min_y,
+							node.max_x, node.max_y)
+
+			self.mapfile.queryByRect(rect)
+
+			#check if this is going to be a leaf node
+			node.is_leaf = True
+			for layer_name in self.mapserver_layers:
+				layer = self.mapfile.getLayerByName(layer_name)
+				layer.open()
+				num_results = layer.getNumResults()
+				layer.close()
+				if(num_results > 0):
+					node.is_leaf = False
+					return
+
+		if(node.zoom_level > self.max_zoom):
+			node.is_blank = True
+			node.is_full = True
 
 	def draw_text(self, img_x, img_y, text, context):
 		context.move_to(img_x, img_y)
@@ -312,11 +347,18 @@ class LabelRenderer:
 
 		return (is_blank, is_leaf)
 
-	def render(self, node):
-		return self.render_normal(node)
+	def render_blank(self):
+		if(self.blank_img_bytes == None):
+			surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
+			self.blank_img_bytes = self.build_image(surface, node)[1]
+		return (0, self.blank_img_bytes)
 
-	def render_normal(self, node):
+	def render(self, node):
+		if(node.is_blank):
+			return self.render_blank(self)
+
 		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
+
 		#convert from a pixel buffer distance to an image buffer distance
 		x_scale = (node.max_x - node.min_x) / float(self.img_w) 
 		y_scale = (node.max_y - node.min_y) / float(self.img_h)

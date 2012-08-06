@@ -379,6 +379,7 @@ class QuadTreeGenStats:
 		return (time.time() - self.start_time) 
 
 	def time_est(self):
+		return 0
 		#calculate the expected number of nodes that will be rendered based on what we have
 		#rendered so far
 		est_node_count = 0

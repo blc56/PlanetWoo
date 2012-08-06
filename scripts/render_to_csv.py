@@ -53,7 +53,9 @@ def load_renderer(config):
 
 	elif(renderer_type == 'label'):
 		renderer = tiletree.label.LabelRenderer(open(config['mapfile_path'],'r').read(),
-			config.get('label_col_index', None), config['mapserver_layers'], point_labels=config.get('point_labels', False))
+			config.get('label_col_index', None), config['mapserver_layers'],
+			config.get('min_zoom', 0), config.get('max_zoom', 100),
+			point_labels=config.get('point_labels', False))
 		load_label_classes(config, renderer)
 		return renderer
 

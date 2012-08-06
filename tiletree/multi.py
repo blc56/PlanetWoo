@@ -26,6 +26,7 @@ class MultiRenderer:
 
 		r_iter = 0
 		for renderer in self.renderers:
+
 			tmp_node = copy.copy(node)
 			tmp_node.geom = node.geom[r_iter]
 			renderer.tile_info(tmp_node, check_full)
@@ -50,8 +51,8 @@ class MultiRenderer:
 		img_ids = []
 		img_bytes = []
 
-		if(node.geom == None):
-			node.geom = [None]*len(self.renderers)
+		#if(node.geom == None):
+			#node.geom = [None]*len(self.renderers)
 
 		r_iter = 0
 		for renderer in self.renderers:
