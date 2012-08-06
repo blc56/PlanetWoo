@@ -10,7 +10,7 @@ import Image
 
 class MapServerRenderer(Renderer):
 	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0, min_zoom=0, max_zoom=19,
-			cache_fulls=True, srs='EPSG:3857'):
+			cache_fulls=True, srs='EPSG:3857', trust_cutter=False):
 		Renderer.__init__(self, img_w, img_h)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
@@ -19,6 +19,7 @@ class MapServerRenderer(Renderer):
 		self.max_zoom = max_zoom
 		self.cache_fulls=cache_fulls
 		self.srs = srs
+		self.trust_cutter = trust_cutter
 
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
@@ -29,6 +30,11 @@ class MapServerRenderer(Renderer):
 		self.mapfile.loadOWSParameters(self.build_request(0, 0, 10, 10))
 
 	def tile_info(self, node, check_full=True):
+		#if the user is not uing a NullGeomCutter, than
+		#user the default tile_info() behavior
+		if(self.trust_cutter):
+			return Renderer.tile_info(self, node, check_full)
+
 		if(node.zoom_level < self.min_zoom):
 			node.is_blank = True
 			node.is_leaf = False

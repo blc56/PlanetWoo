@@ -301,8 +301,6 @@ class Renderer(NullRenderer):
 					node.is_full = True
 					node.is_leaf = True
 
-		return None
-
 	def render(self, node):
 		if(node.is_blank):
 			return self.render_blank()
@@ -443,7 +441,7 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, st
 
 	#figure out the geometry associated with a node at start_checks_zoom - 1
 	#so that the next tile_info() call won't find a None value for geometry
-	if(start_checks_zoom != None and node.zoom_level >= (start_checks_zoom - 1)):
+	if(start_checks_zoom == None or node.zoom_level >= (start_checks_zoom - 1)):
 		return node.split(cutter)
 	return node.split()
 
@@ -455,7 +453,7 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 	root_node = QuadTreeGenNode(None,min_x,min_y,max_x,max_y,
 		zoom_level=start_level, tile_x=start_tile_x, tile_y=start_tile_y)
 	root_geom = None
-	if(start_checks_zoom != None and root_node.zoom_level >= start_checks_zoom):
+	if(start_checks_zoom == None or root_node.zoom_level >= start_checks_zoom):
 		root_node.geom = cutter.cut(min_x, min_y, max_x, max_y)
 
 	nodes_to_render = [root_node]

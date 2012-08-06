@@ -44,6 +44,36 @@ class ShapefileCutter:
 
 		return tiletree.cut_helper(min_x, min_y, max_x, max_y, geom)
 
+class ShapefileRAMCutter(ShapefileCutter):
+	def __init__(self, shapefile_path, layer_name):
+		ShapefileCutter.__init__(self, shapefile_path, layer_name)
+
+	def load(self):
+		ogr_driver = ogr.GetDriverByName('ESRI Shapefile')
+		ogr_ds = ogr_driver.Open(self.shapefile_path)
+		ogr_layer = ogr_ds.GetLayerByName(self.layer_name)
+
+		ret_geom = shapely.wkt.loads("POLYGON EMPTY")
+
+		f = ogr_layer.GetNextFeature()
+		while(f):
+			geom_ref = f.GetGeometryRef()
+			if(geom_ref):
+				#yea, I should use cascaded union here, but it 
+				#causes a segfault in my dev envrionment
+				#TODO: fix that...
+				ret_geom = ret_geom.union(shapely.wkt.loads(geom_ref.ExportToWkt()))
+			f = ogr_layer.GetNextFeature()
+
+		return ret_geom
+
+	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
+		geom = parent_geom
+		if(parent_geom == None):
+			geom = self.load()
+
+		return tiletree.cut_helper(min_x, min_y, max_x, max_y, geom)
+
 
 class MaptreeCutter:
 	def __init__(self, shapefile_path, layer_name, qix_path):

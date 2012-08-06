@@ -14,7 +14,9 @@ import json
 import subprocess
 
 def load_cutter(config):
-	cutter_type = config['cutter_type']
+	cutter_type = config.get('cutter_type', 'null')
+	if(cutter_type == 'shapefileram'):
+		return load_shapefile_ram_cutter(config['shapefile_path'], config['shapefile_layer'])
 	if(cutter_type == 'shapefile'):
 		return load_shapefile_cutter(config['shapefile_path'], config['shapefile_layer'])
 	elif(cutter_type == 'maptree'):
@@ -46,13 +48,20 @@ def load_renderer(config):
 	renderer_type = config.get('renderer_type', 'mapserver')
 
 	if(renderer_type == 'mapserver'):
-		return tiletree.mapserver.MapServerRenderer(open(config['mapfile_path'],'r').read(),
+		mapfile_path = config['mapfile_path']
+		if(isinstance(mapfile_path, list)):
+			mapfile_path = mapfile_path[0]
+		return tiletree.mapserver.MapServerRenderer(open(mapfile_path,'r').read(),
 			config['mapserver_layers'], img_w=256, img_h=256, img_buffer=config.get('img_buffer', 0),
 			min_zoom=config.get('min_zoom', 0), max_zoom=config.get('max_zoom', 20),
-			cache_fulls=config.get('cache_fulls', True), srs=config.get('srs', 'EPSG:3857'))
+			cache_fulls=config.get('cache_fulls', True), srs=config.get('srs', 'EPSG:3857'),
+			trust_cutter=config.get('trust_cutter', False))
 
 	elif(renderer_type == 'label'):
-		renderer = tiletree.label.LabelRenderer(open(config['mapfile_path'],'r').read(),
+		mapfile_path = config['mapfile_path']
+		if(isinstance(mapfile_path, list)):
+			mapfile_path = mapfile_path[0]
+		renderer = tiletree.label.LabelRenderer(open(mapfile_path,'r').read(),
 			config.get('label_col_index', None), config['mapserver_layers'],
 			config.get('min_zoom', 0), config.get('max_zoom', 100),
 			point_labels=config.get('point_labels', False))
@@ -68,7 +77,14 @@ def load_postgres_cutter(connect_str, table_name):
 	return tiletree.postgres.PostgresCutter(connect_str, table_name)
 
 def load_shapefile_cutter(shapefile_path, shapefile_layer):
+	if(isinstance(shapefile_path, list)):
+		shapefile_path = shapefile_path[0]
 	return  tiletree.shapefile.ShapefileCutter(shapefile_path, str(shapefile_layer))
+
+def load_shapefile_ram_cutter(shapefile_path, shapefile_layer):
+	if(isinstance(shapefile_path, list)):
+		shapefile_path = shapefile_path[0]
+	return  tiletree.shapefile.ShapefileRAMCutter(shapefile_path, str(shapefile_layer))
 
 def load_maptree_cutter(shapefile_path, shapefile_layer):
 	shapefile_root = os.path.basename(shapefile_path)
