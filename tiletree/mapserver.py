@@ -10,7 +10,7 @@ import Image
 
 class MapServerRenderer(Renderer):
 	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0, min_zoom=0, max_zoom=19,
-			cache_fulls=True):
+			cache_fulls=True, srs='EPSG:3857'):
 		Renderer.__init__(self, img_w, img_h)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
@@ -18,6 +18,7 @@ class MapServerRenderer(Renderer):
 		self.min_zoom = min_zoom
 		self.max_zoom = max_zoom
 		self.cache_fulls=cache_fulls
+		self.srs = srs
 
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
@@ -122,9 +123,7 @@ class MapServerRenderer(Renderer):
 		wms_req.setParameter('FORMAT', 'image/png')
 		wms_req.setParameter('WIDTH', str(self.img_w + self.img_buffer*2))
 		wms_req.setParameter('HEIGHT', str(self.img_h + self.img_buffer*2))
-		wms_req.setParameter('SRS', 'EPSG:3857')
-		#TODO make this configurable
-		#wms_req.setParameter('SRS', 'EPSG:4326')
+		wms_req.setParameter('SRS', self.srs)
 		wms_req.setParameter('REQUEST', 'GetMap')
 		wms_req.setParameter('BBOX', ','.join(str(x) for x in [min_x, min_y, max_x, max_y]))
 		wms_req.setParameter('LAYERS', ','.join(self.layers) )

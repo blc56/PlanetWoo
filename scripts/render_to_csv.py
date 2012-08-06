@@ -49,7 +49,7 @@ def load_renderer(config):
 		return tiletree.mapserver.MapServerRenderer(open(config['mapfile_path'],'r').read(),
 			config['mapserver_layers'], img_w=256, img_h=256, img_buffer=config.get('img_buffer', 0),
 			min_zoom=config.get('min_zoom', 0), max_zoom=config.get('max_zoom', 20),
-			cache_fulls=config.get('cache_fulls', True))
+			cache_fulls=config.get('cache_fulls', True), srs=config.get('srs', 'EPSG:3857'))
 
 	elif(renderer_type == 'label'):
 		renderer = tiletree.label.LabelRenderer(open(config['mapfile_path'],'r').read(),
