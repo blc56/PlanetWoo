@@ -216,24 +216,44 @@ class LabelRenderer:
 	#returns (is_in_tile, bbox)
 	def position_label(self, shape, node, label_width, label_height):
 		if(self.point_labels):
-			return self.position_point_label(shape, node, label_width, label_height)
+			return self.position_point_label(shape, node, label_width, label_height) 
 		return self.position_poly_label(shape, node, label_width, label_height)
 
-	def position_point_label(self, shape, node, label_width, label_height):
+	def label_point_bbox(self, x, y, width, height, x_scale, y_scale, where_ud, where_lr):
+		width = width * x_scale * .5
+		height = height * y_scale * .5
+
+		#TODO: add more options and user configurability here!
+
+		if(where_ud == 'center'):
+			min_y = y - height
+			max_y = y + height + (self.label_buffer * y_scale)
+		elif(where_ud == 'up'):
+			min_y = y - height * 2 - (self.label_buffer * y_scale) - (self.point_buffer * y_scale)
+			max_y = y  - (self.point_buffer * y_scale)
+		elif(where_ud == 'down'):
+			min_y = y + (self.point_buffer * y_scale)
+			max_y = y + (self.point_buffer * y_scale) + (height*2) + (self.label_buffer * y_scale)
+
+		if(where_lr == 'right'):
+			min_x = x + (self.point_buffer * x_scale)
+			max_x = x + (width * 2) + (self.label_buffer * x_scale)
+
+		elif(where_lr == 'left'):
+			max_x = x - (self.point_buffer * x_scale) + (self.label_buffer * x_scale)
+			min_x = x - (self.point_buffer * x_scale) - width * 2
+
+		return (min_x, min_y, max_x, max_y)
+
+	def position_point_label(self, shape, node, label_width, label_height, where_ud='center', where_lr='right'):
 		seed_point = shape.getCentroid()
 
 		x_scale = (node.max_x - node.min_x) / float(self.img_w)
 		y_scale = (node.max_y - node.min_y) / float(self.img_h)
-		label_geo_w = label_width * x_scale * .5
-		label_geo_h = label_height * y_scale * .5
 
 		#put the text to the right of the point
-		x_buffer = self.label_buffer * x_scale
-		y_buffer = self.label_buffer * y_scale
-		#x_buffer = 0
-		#y_buffer = 0
-		label_geo_bbox = (seed_point.x + (self.point_buffer * x_scale), seed_point.y - label_geo_h,
-				seed_point.x + (label_geo_w * 2) + x_buffer, seed_point.y + label_geo_h + y_buffer) 
+		label_geo_bbox = self.label_point_bbox(seed_point.x, seed_point.y, label_width, label_height,
+				x_scale, y_scale, where_ud, where_lr)
 
 		#make sure that this label doesnt intersect with any other labels
 		label_shape = mapscript.rectObj(*label_geo_bbox).toPolygon()
