@@ -1,7 +1,8 @@
 ##\file composite.py 
-import Image
+#import Image
 import StringIO
 import tiletree
+import cairo
 
 class RenderInfo:
 	def __init__(self, name, storage_manager, renderer, cutter, check_full, start_zoom=None,
@@ -68,22 +69,41 @@ class TileCompositor:
 	def fetch_helper(self, tile_generator):
 		#TODO: use imagemagick to see if paletting is faster
 		#then composite those layers together
-		output_tile = None
+		output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 256, 256)
+		output_context = cairo.Context(output_surface)
 		for tile in tile_generator:
 			if(tile == None):
 				continue
-			if(output_tile == None):
-				output_tile = Image.open(tile)
-				#output_tile = output_tile.convert('RGBA')
-				continue
-			new_tile = Image.open(tile)
-			#new_tile = new_tile.convert('RGBA')
-			output_tile.paste(new_tile, (0, 0), new_tile)
+			tile_img = cairo.ImageSurface.create_from_png(tile)
+			output_context.set_source_surface(tile_img, 0, 0)
+			output_context.paint()
 
-		#output_tile = output_tile.convert('RGB')
-		#output_tile = output_tile.convert('P', palette=Image.ADAPTIVE, colors=256)
 		output_bytes = StringIO.StringIO()
-		output_tile.save(output_bytes, format='PNG')
+		output_surface.write_to_png(output_bytes)
 
 		return StringIO.StringIO(output_bytes.getvalue())
+
+	#def fetch_helper(self, tile_generator):
+		##TODO: use imagemagick to see if paletting is faster
+		##then composite those layers together
+		#output_tile = None
+		#for tile in tile_generator:
+			#if(tile == None):
+				#continue
+			#if(output_tile == None):
+				#output_tile = Image.open(tile)
+				#if(output_tile.mode != 'RGBA'):
+					#output_tile = output_tile.convert('RGBA')
+				#continue
+			#new_tile = Image.open(tile)
+			#if(new_tile.mode != 'RGBA'):
+				#new_tile = new_tile.convert('RGBA')
+			#output_tile.paste(new_tile, (0, 0), new_tile)
+
+		##output_tile = output_tile.convert('RGBA')
+		##output_tile = output_tile.convert('P', palette=Image.ADAPTIVE, colors=256)
+		#output_bytes = StringIO.StringIO()
+		#output_tile.save(output_bytes, format='PNG', mode="RGBA")
+
+		#return StringIO.StringIO(output_bytes.getvalue())
 

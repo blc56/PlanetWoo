@@ -40,6 +40,7 @@ def main():
 
 	render_info_dict = {}
 	render_layers = []
+	print args.layers
 	for layer in args.layers:
 		tree_table, image_table = layer.split(',')
 		storage_manager = tiletree.postgres.PostgresStorageManager(args.conn_str, tree_table, image_table)
