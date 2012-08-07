@@ -184,7 +184,8 @@ def get_results(config_path):
 
 @task
 @serial
-def load_results(config_path, connect_str, node_table, image_table, download_dir):
+def load_results(config_path, connect_str, node_table, image_table, download_dir,
+		address_override=None, prefix_override=None):
 	global_config=json.loads(open(config_path, 'r').read())
 	render_node_configs = create_machine_jobs(global_config)
 
@@ -196,9 +197,14 @@ def load_results(config_path, connect_str, node_table, image_table, download_dir
 			is_first_load = False
 			storage.recreate_tables()
 		for x in range(0, len(render_node['jobs'])):
-			prefix = os.path.basename(render_node['output_prefix'])
-			tree_path = os.path.join(download_dir, render_node['address']) + '/' + prefix + 'tree_%d.csv' % x
-			image_path = os.path.join(download_dir, render_node['address']) + '/' + prefix + 'images_%d.csv' % x
+			prefix = prefix_override
+			if(prefix_override == None):
+				prefix = os.path.basename(render_node['output_prefix'])
+			address = address_override
+			if(address_override == None):
+				address = render_node['address']
+			tree_path = os.path.join(download_dir, address) + '/' + prefix + 'tree_%d.csv' % x
+			image_path = os.path.join(download_dir, address) + '/' + prefix + 'images_%d.csv' % x
 			print tree_path, image_path
 			storage.copy(open(tree_path, 'r'), open(image_path, 'r'))
 
