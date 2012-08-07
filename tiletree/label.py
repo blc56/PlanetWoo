@@ -365,6 +365,9 @@ class LabelRenderer:
 		min_label_x = ghost_x - (x_scale * self.label_adjustment_max)
 		max_label_x = ghost_x + (x_scale * self.label_adjustment_max)
 
+		tile_shape = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y).toPolygon()
+
+
 		y_pos = ghost_y
 		good_position = False
 		position_interval = min(shape.bounds.maxy, ghost_y + self.label_adjustment_max) -\
@@ -388,7 +391,8 @@ class LabelRenderer:
 				min_x = min(line.get(0).x, line.get(1).x)
 				max_x = max(line.get(0).x, line.get(1).x)
 				if((max_x - min_x) >= (label_geo_w * 2)):
-					#do a final check that considers the height of the label
+
+					#do a check that considers the height of the label
 					x_pos = (max_x + min_x) / 2.0
 					label_geo_bbox = (x_pos - label_geo_w, y_pos - label_geo_h,
 							x_pos + label_geo_w + x_buffer, y_pos + label_geo_h + y_buffer) 
@@ -396,6 +400,13 @@ class LabelRenderer:
 					if(node.label_geoms != None):
 						if(label_shape.intersects(node.label_geoms)):
 							continue
+
+					#don't let this label bleed into another tile if it has been
+					#shifted
+					#this avoids an infinite chain of label "corrections"
+					if(attempt_iter !=0 and not tile_shape.contains(label_shape)):
+						continue
+
 					good_position = True
 					break
 
