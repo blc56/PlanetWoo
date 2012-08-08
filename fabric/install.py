@@ -145,7 +145,7 @@ export PATH
 @task
 #for ubuntu 12.04 machines
 def install_deps(prefix="/opt/planetwoo/"):
-	#fix zlib library link so that PIL will come with zlib (and thus png) suport
+	##fix zlib library link so that PIL will come with zlib (and thus png) suport
 	sudo('rm -f /usr/lib/libz.so')
 	sudo('ln -s /usr/lib/x86_64-linux-gnu/libz.so /usr/lib/')
 
@@ -168,6 +168,7 @@ def install_deps(prefix="/opt/planetwoo/"):
 	sudo('apt-get -y install libproj-dev')
 	sudo('apt-get -y install s3cmd')
 	sudo('apt-get -y install libpq-dev')
+	sudo('apt-get -y install python2.7-cairo')
 	sudo('apt-get -y install git')
 	sudo('apt-get -y install screen dtach')
 	sudo('pip install shapely')
@@ -189,14 +190,15 @@ def install_deps(prefix="/opt/planetwoo/"):
 			#annoying...
 			sudo('make install')
 
-		#mapserver
+		##mapserver
 		sudo('wget http://download.osgeo.org/mapserver/mapserver-6.0.3.tar.gz')
 		sudo('tar -xf mapserver-6.0.3.tar.gz')
 		with cd('mapserver-6.0.3'):
 			#hack to fix mapserver compilation?
 			#it looks like ubuntu has finally fixed this. hurray
-			#sudo('rm -f /usr/lib/libgd.so')
-			#sudo('ln -s /usr/lib/x86_64-linux-gnu/libgd.so /usr/lib/')
+			#update: broken on amazon, but worked on a real box (I think)
+			sudo('rm -f /usr/lib/libgd.so')
+			sudo('ln -s /usr/lib/x86_64-linux-gnu/libgd.so /usr/lib/')
 			sudo('./configure --with-xml --with-wfs --with-wmsclient --with-wfsclient --with-postgis --with-freetype --with-proj --with-gdal=%(prefix)s/bin/gdal-config --with-ogr=%(prefix)s/bin/gdal-config --prefix=%(prefix)s --with-geos' % {'prefix': prefix})
 			sudo('make')
 			sudo('make install')
