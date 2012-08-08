@@ -473,7 +473,7 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 
 	while(len(nodes_to_render) > 0):
 		this_node = nodes_to_render.pop()
-		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom)
+		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom, check_full)
 		nodes_to_render.extend(children)
 
 		#output stats every so often
