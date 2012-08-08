@@ -81,7 +81,7 @@ class TileCompositor:
 		output_bytes = StringIO.StringIO()
 		output_surface.write_to_png(output_bytes)
 
-		return StringIO.StringIO(output_bytes.getvalue())
+		return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
 
 	#def fetch_helper(self, tile_generator):
 		##TODO: use imagemagick to see if paletting is faster

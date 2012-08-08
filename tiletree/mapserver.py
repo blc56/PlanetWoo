@@ -6,11 +6,11 @@ import shapely.geometry
 import time
 import mapscript
 import tiletree
-import Image
+import cairo
 
 class MapServerRenderer(Renderer):
 	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0, min_zoom=0, max_zoom=19,
-			cache_fulls=True, srs='EPSG:3857', trust_cutter=False):
+			cache_fulls=True, srs='EPSG:3857', trust_cutter=False, tile_buffer=0):
 		Renderer.__init__(self, img_w, img_h)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
@@ -20,6 +20,7 @@ class MapServerRenderer(Renderer):
 		self.cache_fulls=cache_fulls
 		self.srs = srs
 		self.trust_cutter = trust_cutter
+		self.tile_buffer = tile_buffer
 
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
@@ -51,8 +52,20 @@ class MapServerRenderer(Renderer):
 
 		#NOTE: we make the assumption here that a full node will contain only
 		#one geometry
-		#TODO: respect self.layers here
-		rect = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y)
+
+		#useful for line layers where the drawn line would actually be thicker
+		#and enter a tile where the line itself wouldn't
+		x_buffer = 0
+		y_buffer = 0
+		if(self.tile_buffer > 0):
+			x_scale = (node.max_x - node.min_x) / float(self.img_w) 
+			y_scale = (node.max_y - node.min_y) / float(self.img_h)
+			x_buffer = x_scale * self.tile_buffer
+			y_buffer = y_scale * self.tile_buffer
+
+		rect = mapscript.rectObj(node.min_x - x_buffer, node.min_y - y_buffer,
+				node.max_x + x_buffer, node.max_y + y_buffer)
+
 		self.mapfile.queryByRect(rect)
 		for layer_name in self.layers:
 			layer = self.mapfile.getLayerByName(layer_name)
@@ -82,16 +95,22 @@ class MapServerRenderer(Renderer):
 		self.mapfile.freeQuery()
 
 	def cut_img_buffer(self, img_bytes):
-		#TODO:XXX: fix this function
 		if(self.img_buffer == 0):
 			return img_bytes
-		buffer_img = Image.open(img_bytes)
-		cut_img = buffer_img.crop( (self.img_buffer, self.img_buffer,
-				self.img_w + self.img_buffer, self.img_h + self.img_buffer) )
-		cut_img.load()
-		cut_bytes = StringIO.StringIO()
-		cut_img.save(cut_bytes, 'png')
-		return cut_bytes
+
+		output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
+		output_context = cairo.Context(output_surface)
+		buffer_img = cairo.ImageSurface.create_from_png(img_bytes)
+
+		output_context.set_operator(cairo.OPERATOR_SOURCE)
+		output_context.set_source_surface(buffer_img, -self.img_buffer, -self.img_buffer)
+		output_context.rectangle(0, 0, self.img_w, self.img_h)
+		output_context.fill()
+
+		output_bytes = StringIO.StringIO()
+		output_surface.write_to_png(output_bytes)
+
+		return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
 
 	def render_normal(self, node):
 		if(self.img_buffer > 0):

@@ -55,7 +55,7 @@ def load_renderer(config):
 			config['mapserver_layers'], img_w=256, img_h=256, img_buffer=config.get('img_buffer', 0),
 			min_zoom=config.get('min_zoom', 0), max_zoom=config.get('max_zoom', 20),
 			cache_fulls=config.get('cache_fulls', True), srs=config.get('srs', 'EPSG:3857'),
-			trust_cutter=config.get('trust_cutter', False))
+			trust_cutter=config.get('trust_cutter', False), tile_buffer=config.get('tile_buffer', 0))
 
 	elif(renderer_type == 'label'):
 		mapfile_path = config['mapfile_path']

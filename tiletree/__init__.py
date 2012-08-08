@@ -13,6 +13,8 @@ import multiprocessing
 import sys
 import types
 import math
+#import Image
+#import wand.image
 
 #a priori knowledge
 ESTIMATED_SAVINGS = .90
@@ -20,6 +22,16 @@ ESTIMATED_SAVINGS = .90
 #if(shapely.speedups.available):
 	#shapely.speedups.enable()
 	#print "SPEEDUP?"
+
+def palette_png_bytes(png_bytes):
+	#output_bytes = StringIO.StringIO()
+	#output_img = Image.open(png_bytes)
+	#output_img = output_img.convert('P', palette=Image.ADAPTIVE, colors=256)
+	#output_img.save(output_bytes, format='PNG', mode='P')
+	#return StringIO.StringIO(output_bytes.getvalue())
+	#TODO: FIXME: make this work
+	return png_bytes
+
 
 def bbox_to_wkt(min_x, min_y, max_x, max_y):
 	return "POLYGON((%(min_x)s %(min_y)s, %(max_x)s %(min_y)s, %(max_x)s %(max_y)s, %(min_x)s %(max_y)s, %(min_x)s %(min_y)s))" % {
