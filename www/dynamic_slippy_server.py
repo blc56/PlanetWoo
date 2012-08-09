@@ -27,7 +27,7 @@ class DynamicTileFetcher(tornado.web.RequestHandler):
 		self.set_header('Content-Type', 'image/png')
 		self.write(img_file.read())
 
-def load_config(config_path, conn_str):
+def load_config(config_path, conn_str, force_create):
 	config = json.loads(open(config_path, 'r').read())
 	render_infos = {}
 
@@ -44,8 +44,9 @@ def load_config(config_path, conn_str):
 		if(layer.get('renderer_type', '') == 'label'):
 			renderer.storage_manager = storage_manager
 
-		#TODO: XXX BLC TESTING
-		storage_manager.recreate_tables()
+		if(force_create or not storage_manager.do_tables_exist()):
+			print 'Recreating', storage_manager.node_table, storage_manager.image_table
+			storage_manager.recreate_tables()
 
 	return (tiletree.composite.TileCompositor(render_infos, config['layer_order'], config['extent']), config['layer_order'])
 
@@ -59,11 +60,12 @@ def main():
 	parser.add_argument('-c', '--conn-str', dest='conn_str', required=False, action='store',
 		default='dbname=planetwoo user=planetwoo')
 	parser.add_argument('-C', '--config-file', dest='config_file', required=True)
+	parser.add_argument('-R', '--force-create', action='store_true', dest='force_create', required=False)
 	args = parser.parse_args()
 
 	port = int(args.port)
 
-	compositor, layers = load_config(args.config_file, args.conn_str)
+	compositor, layers = load_config(args.config_file, args.conn_str, args.force_create)
 
 	app = tornado.web.Application([
 		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, DynamicTileFetcher,

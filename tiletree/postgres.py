@@ -12,6 +12,14 @@ class PostgresStorageManager:
 		self.node_table = node_table
 		self.image_table = image_table
 
+	def do_tables_exist(self):
+		curs = self.conn.cursor()	
+		curs.execute(\
+"""
+SELECT * FROM information_schema.tables where table_name='%(table)s'
+""" % {'table':self.node_table})
+		return bool(curs.rowcount)
+
 	def recreate_tables(self):
 		curs = self.conn.cursor()	
 		curs.execute(\
