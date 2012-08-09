@@ -193,13 +193,13 @@ class LabelRenderer:
 
 			y_pos += y_inc
 
-		context.move_to(img_x, img_y)
-		context.line_to(img_max_x, img_y)
-		context.line_to(img_max_x, img_max_y)
-		context.line_to(img_x, img_max_y)
-		context.line_to(img_x, img_y)
-		context.set_source_rgba(1, 0, 0, 1)
-		context.stroke()
+		#context.move_to(img_x, img_y)
+		#context.line_to(img_max_x, img_y)
+		#context.line_to(img_max_x, img_max_y)
+		#context.line_to(img_x, img_max_y)
+		#context.line_to(img_x, img_y)
+		#context.set_source_rgba(1, 0, 0, 1)
+		#context.stroke()
 
 	def get_line_size(self, context, label_text):
 		text_extents = context.text_extents(label_text)
