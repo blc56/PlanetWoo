@@ -36,11 +36,6 @@ class MapServerRenderer(Renderer):
 		if(self.trust_cutter):
 			return Renderer.tile_info(self, node, check_full)
 
-		if(node.zoom_level < self.min_zoom):
-			node.is_blank = True
-			node.is_leaf = False
-			return
-
 		if(node.zoom_level > self.max_zoom):
 			node.is_blank = True
 			node.is_leaf = True
@@ -93,6 +88,12 @@ class MapServerRenderer(Renderer):
 			layer.close()
 
 		self.mapfile.freeQuery()
+
+		if(node.zoom_level < self.min_zoom):
+			#even if this node had geometries in it, and may not be a 
+			#a leaf node, it is going to be blank
+			node.is_blank = True
+			return
 
 	def cut_img_buffer(self, img_bytes):
 		if(self.img_buffer == 0):
