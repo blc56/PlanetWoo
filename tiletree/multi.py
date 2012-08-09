@@ -16,8 +16,10 @@ class MultiCutter(tiletree.NullGeomCutter):
 		self.cutters = cutters
 
 	def cut(self, min_x, min_y, max_x, max_y, parent_geom=None):
+		if(parent_geom == None):
+			parent_geom = MultiGeom(len(self.cutters), parent_geom)
 		result = MultiGeom(len(self.cutters), parent_geom)
-		result.geoms = [c.cut(min_x, min_y, max_x, max_y, p) for c,p in zip(self.cutters, parent_geom)]
+		result.geoms = [c.cut(min_x, min_y, max_x, max_y, p) for c,p in zip(self.cutters, parent_geom.geoms)]
 		return result
 
 class MultiRenderer:
@@ -53,6 +55,8 @@ class MultiRenderer:
 				is_leaf = False
 			if(not tmp_node.is_full):
 				is_full = False
+
+			node.label_geoms = tmp_node.label_geoms
 
 		node.is_blank = is_blank
 		node.is_full = is_full
@@ -93,6 +97,8 @@ class MultiRenderer:
 				node.geom.leaf_reached[r_iter] = 'blank'
 			if(tmp_node.is_full and tmp_node.is_leaf):
 				node.geom.leaf_reached[r_iter] = 'full'
+
+			node.label_geoms = tmp_node.label_geoms
 
 		node.is_blank = is_blank
 		node.is_full = is_full
