@@ -98,26 +98,26 @@ class MapServerRenderer(Renderer):
 
 			return
 
-	#def cut_img_buffer(self, img_bytes):
-		#if(self.img_buffer == 0):
-			#return img_bytes
-
-		#in_img = Image.open(img_bytes)
-		#out_img = in_img.crop((self.img_buffer, self.img_buffer, self.img_w,
-				#self.img_h))
-
-		#out_bytes = StringIO.StringIO()
-		#out_img.save(out_bytes, 'png')
-		#return StringIO.StringIO(out_bytes)
-		
 	def cut_img_buffer(self, img_bytes):
 		if(self.img_buffer == 0):
 			return img_bytes
 
-		with wand.image.Image(file=img_bytes) as in_img:
-			in_img.crop(self.img_buffer, self.img_buffer, width=self.img_w,
-					height=self.img_h)
-			return StringIO.StringIO(in_img.make_blob())
+		in_img = Image.open(img_bytes)
+		out_img = in_img.crop((self.img_buffer, self.img_buffer, self.img_w,
+				self.img_h))
+
+		out_bytes = StringIO.StringIO()
+		out_img.save(out_bytes, 'png')
+		return StringIO.StringIO(out_bytes)
+		
+	#def cut_img_buffer(self, img_bytes):
+		#if(self.img_buffer == 0):
+			#return img_bytes
+
+		#with wand.image.Image(file=img_bytes) as in_img:
+			#in_img.crop(self.img_buffer, self.img_buffer, width=self.img_w,
+					#height=self.img_h)
+			#return StringIO.StringIO(in_img.make_blob())
 
 	#def cut_img_buffer(self, img_bytes):
 		#if(self.img_buffer == 0):
