@@ -11,8 +11,15 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   purpose
    deps
    dist_render
+   cutter_options
+   storage_manager_options
+   renderer_options
+   multi_render
+   label_render
+   future
 
 Indices and tables
 ==================

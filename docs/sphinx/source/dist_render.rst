@@ -1,16 +1,21 @@
-Distributed Rendering - Mapserver
-==================================
+Distributed Rendering - Overview
+=================================
 
 Configfile
 -----------
 
-Distributed rendering is controlled through a json configuation files. The file should contain a dictionary with the following attributes.
+Distributed rendering is controlled through a json configuation file. The file should contain a dictionary with the following attributes.
+
+.. _global_options_mapserver:
+
+Global Options
+---------------
 
 mapfile_path
- Path to the mapfile to be rendered on the local machine.
+ A list of (local) paths to the mapfiles to be rendered. 
 
 shapefile_path
- Path to the shapefile to be rendered on the local machine. Specify the .shp suffix, and all files with a matching basename will be copied.
+ A list of (local) shapefile paths that are required for rendering. Specify the .shp suffix, and all files with a matching basename will be copied.
 
 data_file_dest
  Path to a directory where working files are copied to render nodes.
@@ -37,41 +42,36 @@ start_tile_x
 start_tile_y
  Y coordinate of the tile which will be the root of rendered tiles. 
 
-min_zoom
- Zoom levels strictly less than this number will always be rendered as blank tiles.
-
-output_prefix
- Prepended to output files on render nodes. 
-
-mapserver_layers
- Layers that should be rendered from the mapfile.
+min_num_jobs
+ Optional. Specifies a minimum number of jobs that should be created and sent to render nodes. This is useful more evenly distributing the workload between render nodes/threads. 
 
 render_script
  TODO: better explanation
  The command that is run inside a shell on render nodes to render tiles. Example:``source ~/env.sh && ~/planetwoo/scripts/render_to_csv.py``. 
 
-min_num_jobs
- Optional. Specifies a minimum number of jobs that should be created and sent to render nodes. This is useful more evenly distributing the workload between render nodes/threads. 
-
-check_full
- Optonal. Default: ``true``. ``true`` or ``false``. Toggles if the renderer will check for tiles that are completely contained by a geometry. It is a good idea to turn this off for linear feature layers for performance reasons.
+start_checks_zoom
+ Optional. Default: ``0``. Zoom level at which the renderer will start checking for tiles which contain no geometries or are completely contained by a geometry.
 
 check_full
  Optional. Default: ``true``. ``true`` or ``false``. Toggles if the renderer will check for tiles that are completely contained by a geometry. It is a good idea to turn this off for linear feature layers for performance reasons.
 
-start_checks_zoom
- Optional. Default: ``0``. Zoom level at which the renderer will start checking for tiles which contain no geometries or are completely contained by a geometry.
+output_prefix
+ Prepended to output files on render nodes. 
 
-Speed Tips
------------
+Cutter Options
+-----------------
 
-Keep the mapfile as simple as possible.
+:ref:`Cutter Options <cutter_config>`
 
-If the shapefile you are rendering contains lots of smaller geometries, try creating a ``shptree`` index. Using ``stop_zoom`` for ``depth`` seems to work well.
+Storage Manager Options
+-----------------
 
-::
+:ref:`Storage Manager Options <storage_manager_config>`
 
- shptree <shapefile.shp> <depth>
+Renderer Options
+-----------------
+
+:ref:`Renderer Options <renderer_config>`
 
 Starting a Distributed Render
 ------------------------------
