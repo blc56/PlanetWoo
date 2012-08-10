@@ -4,15 +4,17 @@ Future Enhancements
 Configurability
 -----------------
 Add in hooks for point label placement: left, right, etc.
+Work out a solution for "Auto" label placement.
 
 Label Wrap Characters
 ----------------------
 Instead of wrapping on whitespace characters, add the ability
 to wrap on a list of characters or regex matches.
 
-TileInfoCache
+Cutters
 -------------
-Add a TileInfoCache that can be used by MultiRenderer to cache tile_info() results for layers which will have identical results.
+Add a cutter that uses a spacial (rtree?) index. Maybe libspatialindex?
+Add a CutterCache that can be used by MultiRenderer/Cutter to cache cut() results for layers which have identical features.
 
 Config file Cleanups
 ---------------------
