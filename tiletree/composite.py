@@ -16,7 +16,6 @@
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
 ##\file composite.py 
-#import Image
 import StringIO
 import tiletree
 import cairo
@@ -99,28 +98,4 @@ class TileCompositor:
 		output_surface.write_to_png(output_bytes)
 
 		return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
-
-	#def fetch_helper(self, tile_generator):
-		##TODO: use imagemagick to see if paletting is faster
-		##then composite those layers together
-		#output_tile = None
-		#for tile in tile_generator:
-			#if(tile == None):
-				#continue
-			#if(output_tile == None):
-				#output_tile = Image.open(tile)
-				#if(output_tile.mode != 'RGBA'):
-					#output_tile = output_tile.convert('RGBA')
-				#continue
-			#new_tile = Image.open(tile)
-			#if(new_tile.mode != 'RGBA'):
-				#new_tile = new_tile.convert('RGBA')
-			#output_tile.paste(new_tile, (0, 0), new_tile)
-
-		##output_tile = output_tile.convert('RGBA')
-		##output_tile = output_tile.convert('P', palette=Image.ADAPTIVE, colors=256)
-		#output_bytes = StringIO.StringIO()
-		#output_tile.save(output_bytes, format='PNG', mode="RGBA")
-
-		#return StringIO.StringIO(output_bytes.getvalue())
 

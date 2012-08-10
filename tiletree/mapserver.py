@@ -24,8 +24,6 @@ import time
 import mapscript
 import tiletree
 import cairo
-import wand.image
-import Image
 
 class MapServerRenderer(Renderer):
 	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0, min_zoom=0, max_zoom=19,
@@ -83,6 +81,12 @@ class MapServerRenderer(Renderer):
 			self.cache_tile_info(node)
 			return
 
+		if(node.zoom_level < self.min_zoom):
+			node.is_blank = True
+			node.is_leaf = False
+			self.cache_tile_info(node)
+			return
+
 		node.is_blank = True
 		node.is_full = False
 		node.is_leaf = True
@@ -131,51 +135,26 @@ class MapServerRenderer(Renderer):
 
 		self.mapfile.freeQuery()
 
-		if(node.zoom_level < self.min_zoom):
-			#even if this node had geometries in it, and may not be a 
-			#a leaf node, it is going to be blank
-			node.is_blank = True
-
 		self.cache_tile_info(node)
-
+		
 	def cut_img_buffer(self, img_bytes):
 		if(self.img_buffer == 0):
 			return img_bytes
 
-		in_img = Image.open(img_bytes)
-		out_img = in_img.crop((self.img_buffer, self.img_buffer, self.img_w,
-				self.img_h))
+		buffer_img = cairo.ImageSurface.create_from_png(img_bytes)
+		output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
+		output_context = cairo.Context(output_surface)
 
-		out_bytes = StringIO.StringIO()
-		out_img.save(out_bytes, 'png')
-		return StringIO.StringIO(out_bytes)
-		
-	#def cut_img_buffer(self, img_bytes):
-		#if(self.img_buffer == 0):
-			#return img_bytes
+		#output_context.set_antialias(cairo.ANTIALIAS_GRAY)
+		output_context.set_operator(cairo.OPERATOR_SOURCE)
+		output_context.set_source_surface(buffer_img, -self.img_buffer, -self.img_buffer)
+		output_context.rectangle(0, 0, self.img_w, self.img_h)
+		output_context.fill()
 
-		#with wand.image.Image(file=img_bytes) as in_img:
-			#in_img.crop(self.img_buffer, self.img_buffer, width=self.img_w,
-					#height=self.img_h)
-			#return StringIO.StringIO(in_img.make_blob())
+		output_bytes = StringIO.StringIO()
+		output_surface.write_to_png(output_bytes)
 
-	#def cut_img_buffer(self, img_bytes):
-		#if(self.img_buffer == 0):
-			#return img_bytes
-
-		#output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
-		#output_context = cairo.Context(output_surface)
-		#buffer_img = cairo.ImageSurface.create_from_png(img_bytes)
-
-		#output_context.set_operator(cairo.OPERATOR_SOURCE)
-		#output_context.set_source_surface(buffer_img, -self.img_buffer, -self.img_buffer)
-		#output_context.rectangle(0, 0, self.img_w, self.img_h)
-		#output_context.fill()
-
-		#output_bytes = StringIO.StringIO()
-		#output_surface.write_to_png(output_bytes)
-
-		#return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
+		return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
 
 	def render_normal(self, node):
 		if(self.img_buffer > 0):
