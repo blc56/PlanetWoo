@@ -143,14 +143,19 @@ def run_render_node(render_node_configs):
 
 @task
 @serial
-def render(config_path):
+def render(config_path, layer_order=None):
 	global_config=json.loads(open(config_path, 'r').read())
+
+	if(layer_order != None):
+		print layer_order
+		global_config['layer_order'] = json.loads(layer_order)
+
 	render_node_configs = create_machine_jobs(global_config)
 	render_hosts = [n['address'] for n in render_node_configs.values()]
 	execute(run_render_node, hosts=render_hosts, render_node_configs=render_node_configs)
 
 def get_progress_from_host(render_node_configs):
-	output_prefix = render_node_configs[env.host_string]['output_prefix']
+	output_prefix = render_node_configs[env.host_string]['dist_render']['output_prefix']
 	num_jobs = len(render_node_configs[env.host_string]['jobs'])
 	host_stats = []
 	for x in range(num_jobs):
