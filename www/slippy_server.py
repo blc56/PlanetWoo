@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #Copyright (C) 2012 Excensus, LLC.
 #
 #This file is part of PlanetWoo.
@@ -15,7 +16,6 @@
 #You should have received a copy of the GNU General Public License
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
-#!/usr/bin/env python
 import sys
 import tornado.ioloop
 import tornado.web

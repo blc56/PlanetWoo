@@ -29,7 +29,8 @@ import Image
 
 class MapServerRenderer(Renderer):
 	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0, min_zoom=0, max_zoom=19,
-			cache_fulls=True, srs='EPSG:3857', trust_cutter=False, tile_buffer=0):
+			cache_fulls=True, srs='EPSG:3857', trust_cutter=False, tile_buffer=0,
+			info_cache_name=None):
 		Renderer.__init__(self, img_w, img_h)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
@@ -40,6 +41,8 @@ class MapServerRenderer(Renderer):
 		self.srs = srs
 		self.trust_cutter = trust_cutter
 		self.tile_buffer = tile_buffer
+		self.info_cache_name = info_cache_name
+		self.info_cache = None
 
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
@@ -49,15 +52,35 @@ class MapServerRenderer(Renderer):
 		self.mapfile = mapscript.fromstring(self.mapfile_template % template_args)
 		self.mapfile.loadOWSParameters(self.build_request(0, 0, 10, 10))
 
+	def set_info_cache(self, cache):
+		self.info_cache = cache
+
+	def cache_tile_info(self, node):
+		if(self.info_cache != None):
+			self.info_cache.add_node_info(node.node_id, {
+				'is_full': node.is_full,
+				'is_blank': node.is_blank,
+				'is_leaf': node.is_leaf,
+				})
+
 	def tile_info(self, node, check_full=True):
+		if(self.info_cache != None):
+			cache_info = self.info_cache.get_node_info(node.node_id)
+			if(cache_info != None):
+				node.__dict__.update(cache_info)
+				return
+
 		#if the user is not uing a NullGeomCutter, than
 		#user the default tile_info() behavior
 		if(self.trust_cutter):
-			return Renderer.tile_info(self, node, check_full)
+			Renderer.tile_info(self, node, check_full)
+			self.cache_tile_info(node)
+			return
 
 		if(node.zoom_level > self.max_zoom):
 			node.is_blank = True
 			node.is_leaf = True
+			self.cache_tile_info(node)
 			return
 
 		node.is_blank = True
@@ -113,7 +136,7 @@ class MapServerRenderer(Renderer):
 			#a leaf node, it is going to be blank
 			node.is_blank = True
 
-			return
+		self.cache_tile_info(node)
 
 	def cut_img_buffer(self, img_bytes):
 		if(self.img_buffer == 0):

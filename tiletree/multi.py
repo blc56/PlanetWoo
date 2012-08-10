@@ -20,6 +20,20 @@ import copy
 
 import tiletree
 
+class TileInfoCache:
+	def __init__(self, name):
+		self.name = name
+		self.cache = {}
+
+	def clear(self):
+		self.cache = {}
+
+	def add_node_info(self, node_id, info_dict):
+		self.cache[node_id] = info_dict
+
+	def get_node_info(self, node_id):
+		return self.cache.get(node_id, None)
+
 class MultiGeom:
 	def __init__(self, num_layers, parent_geom=None):
 		self.geoms = [None] * num_layers
@@ -42,6 +56,12 @@ class MultiCutter(tiletree.NullGeomCutter):
 class MultiRenderer:
 	def __init__(self, renderers):
 		self.renderers = renderers
+		self.tile_info_caches = {}
+
+		for renderer in self.renderers:
+			if(renderer.info_cache_name != None):
+				cache = self.tile_info_caches.setdefault(renderer.info_cache_name, TileInfoCache(renderer.info_cache_name))
+				renderer.set_info_cache(cache)
 
 	def tile_info(self, node, check_full=True):
 		is_blank = True
@@ -121,6 +141,10 @@ class MultiRenderer:
 		node.is_full = is_full
 		node.is_leaf = is_leaf
 		node.image_id = img_ids
+
+		#now that we have rendered this node, clear the tile info caches
+		for cache in self.tile_info_caches.values():
+			cache.clear()
 
 		return (node.image_id, img_bytes)
 
