@@ -266,13 +266,26 @@ class NullStorageManager:
 		pass
 
 class NullRenderer:
-	def __init__(self, img_w=256, img_h=256, img_prefix='images/'):
+	def __init__(self, img_w=256, img_h=256, img_prefix='images/', info_cache_name=None):
 		self.img_w = img_w
 		self.img_h = img_h
 		self.blank_img_id = -1
 		self.blank_img_bytes = None 
 		self.full_img_id = -2
 		self.full_img_bytes = None 
+		self.info_cache_name = info_cache_name
+		self.info_cache = None
+
+	def set_info_cache(self, cache):
+		self.info_cache = cache
+
+	def cache_tile_info(self, node):
+		if(self.info_cache != None):
+			self.info_cache.add_node_info(node.node_id, {
+				'is_full': node.is_full,
+				'is_blank': node.is_blank,
+				'is_leaf': node.is_leaf,
+				})
 
 	def render_full(self):
 		if(self.full_img_bytes == None):
@@ -305,10 +318,9 @@ class NullRenderer:
 		return (0, StringIO.StringIO('') )
 
 class Renderer(NullRenderer):
-	def __init__(self, img_w=256, img_h=256):
-		NullRenderer.__init__(self, img_w, img_h)
+	def __init__(self, img_w=256, img_h=256, info_cache_name=None):
+		NullRenderer.__init__(self, img_w, img_h, info_cache_name=info_cache_name)
 
-	#\return (is_blank, is_full, is_leaf)
 	def tile_info(self, node, check_full=True):
 		node.is_blank = False
 		node.is_full = False

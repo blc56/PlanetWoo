@@ -29,7 +29,7 @@ class MapServerRenderer(Renderer):
 	def __init__(self, mapfile_template, layers, img_w=256, img_h=256, img_buffer=0, min_zoom=0, max_zoom=19,
 			cache_fulls=True, srs='EPSG:3857', trust_cutter=False, tile_buffer=0,
 			info_cache_name=None):
-		Renderer.__init__(self, img_w, img_h)
+		Renderer.__init__(self, img_w, img_h, info_cache_name=info_cache_name)
 		self.mapfile_template=mapfile_template
 		self.layers=layers
 		self.img_buffer=img_buffer
@@ -39,8 +39,6 @@ class MapServerRenderer(Renderer):
 		self.srs = srs
 		self.trust_cutter = trust_cutter
 		self.tile_buffer = tile_buffer
-		self.info_cache_name = info_cache_name
-		self.info_cache = None
 
 		#creating a mapfile leaks memory, so only create it once
 		template_args = {
@@ -49,17 +47,6 @@ class MapServerRenderer(Renderer):
 		}
 		self.mapfile = mapscript.fromstring(self.mapfile_template % template_args)
 		self.mapfile.loadOWSParameters(self.build_request(0, 0, 10, 10))
-
-	def set_info_cache(self, cache):
-		self.info_cache = cache
-
-	def cache_tile_info(self, node):
-		if(self.info_cache != None):
-			self.info_cache.add_node_info(node.node_id, {
-				'is_full': node.is_full,
-				'is_blank': node.is_blank,
-				'is_leaf': node.is_leaf,
-				})
 
 	def tile_info(self, node, check_full=True):
 		if(self.info_cache != None):

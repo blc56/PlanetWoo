@@ -44,55 +44,36 @@ def split_bbox(min_num_boxes, start_zoom, start_tile_x, start_tile_y, stop_zoom,
 	return nodes
 
 def create_machine_jobs(global_config):
-	total_num_threads = sum(x['num_threads'] for x in global_config['render_nodes'])
-	min_num_jobs = global_config.get('min_num_jobs', 1)
+	dist_render_config = global_config['dist_render']
+	total_num_threads = sum(x['num_threads'] for x in dist_render_config['render_nodes'])
+	min_num_jobs = dist_render_config.get('min_num_jobs', 1)
 	if(total_num_threads > min_num_jobs):
 		min_num_jobs = total_num_threads
 	map_extent = global_config['map_extent']
 
-	jobs = split_bbox(min_num_jobs, global_config['start_zoom'],
-			global_config['start_tile_x'], global_config['start_tile_y'],
-			global_config['stop_zoom'], *global_config['map_extent'])
+	jobs = split_bbox(min_num_jobs, dist_render_config['start_zoom'],
+			dist_render_config['start_tile_x'], dist_render_config['start_tile_y'],
+			dist_render_config['stop_zoom'], *global_config['map_extent'])
 
 	fill_to_zoom_level = jobs[0].zoom_level - 1
-
-	if(not isinstance(global_config['mapfile_path'], list)):
-		global_config['mapfile_path'] = [local_mapfile_path]
-	if(not isinstance(global_config['shapefile_path'], list)):
-		global_config['shapefile_path'] = [local_shapefile_path]
-
-	mapfile_path = []
-	shapefile_path = []
-
-	for path in global_config['mapfile_path']:
-		mapfile_path.append(os.path.join(global_config['data_file_dest'],
-			os.path.basename(path)))
-
-	for path in global_config['shapefile_path']:
-		shapefile_path.append(os.path.join(global_config['data_file_dest'],
-			os.path.basename(path)))
 
 	jobs_per_thread = int(math.ceil(len(jobs) / float(total_num_threads)))
 
 	render_node_configs = {}
-	for render_node in global_config['render_nodes']:
+	for render_node in dist_render_config['render_nodes']:
 		this_num_jobs = min(jobs_per_thread * render_node['num_threads'], len(jobs))
 		#inherit the stuff from the global config
 		this_config = copy.copy(global_config)
 		this_config.update({
 			'address': render_node['address'],
 			'num_threads': render_node['num_threads'],
-			'mapfile_path': mapfile_path,
-			'shapefile_path': shapefile_path,
-			'local_shapefile_path':global_config['shapefile_path'],
-			'local_mapfile_path':global_config['mapfile_path'],
 			'jobs': []
 		})
 		for job in jobs[0:this_num_jobs]:
 			this_config['jobs'].append({
 				'extent': [job.min_x, job.min_y, job.max_x, job.max_y],
 				'start_zoom': job.zoom_level,
-				'stop_zoom': global_config['stop_zoom'],
+				'stop_zoom': dist_render_config['stop_zoom'],
 				'tile_x':job.tile_x,
 				'tile_y':job.tile_y,
 			})
@@ -103,10 +84,10 @@ def create_machine_jobs(global_config):
 	if(fill_to_zoom_level >= 0):
 		render_node_configs.values()[0]['jobs'].append({
 			'extent': global_config['map_extent'],
-			'start_zoom': global_config['start_zoom'],
+			'start_zoom': dist_render_config['start_zoom'],
 			'stop_zoom': fill_to_zoom_level,
-			'tile_x': global_config['start_tile_x'],
-			'tile_y': global_config['start_tile_y'],
+			'tile_x': dist_render_config['start_tile_x'],
+			'tile_y': dist_render_config['start_tile_y'],
 		})
 
 	#print json.dumps(render_node_configs)
@@ -121,29 +102,26 @@ def update_planetwoo(prefix="/opt/planetwoo"):
 @parallel
 def copy_data_files(render_node_config):
 	#copy over mapfile, shapefile, and render config files
-	sudo('mkdir -p %s' % render_node_config['data_file_dest'])
-	sudo('chown %(user)s:%(user)s %(path)s' % {'user':env.user, 'path':render_node_config['data_file_dest']})
+	data_file_dest =  render_node_config['dist_render']['data_file_dest']
+	sudo('mkdir -p %s' % data_file_dest)
+	sudo('chown %(user)s:%(user)s %(path)s' % {'user':env.user, 'path':data_file_dest})
 
-	local_mapfile_path = render_node_config['local_mapfile_path']
-	local_shapefile_path = render_node_config['local_shapefile_path']
-
-	if(not isinstance(local_mapfile_path, list)):
-		local_mapfile_path = [local_mapfile_path]
-	if(not isinstance(local_shapefile_path, list)):
-		local_shapefile_path = [local_shapefile_path]
-
-	for path in local_mapfile_path:
-		put(path, render_node_config['data_file_dest'])
-
-	for path in local_shapefile_path:
-		shapefile_root = os.path.splitext(path)[0]
-		put(shapefile_root + '.*', render_node_config['data_file_dest'])
+	for layer_name in render_node_config['layer_order']:
+		layer_config = render_node_config['layers'][layer_name]
+		for file_type in ['mapfile_path', 'shapefile_path']:
+			if(file_type in layer_config):
+				local_path = layer_config[file_type]
+				if(file_type == 'shapefile_path'):
+					shapefile_root = os.path.splitext(local_path)[0]
+					put(shapefile_root + '.*', data_file_dest)
+				else:
+				    put(local_path, data_file_dest)
 
 	tmp_config_bytes = StringIO.StringIO()
 	tmp_config_bytes.write(json.dumps(render_node_config))
 	tmp_file_name = str(uuid.uuid4()) + '.json'
 
-	remote_file_path = os.path.join(render_node_config['data_file_dest'], tmp_file_name)
+	remote_file_path = os.path.join(data_file_dest, tmp_file_name)
 	put(tmp_config_bytes, remote_file_path)
 	return remote_file_path
 
@@ -159,7 +137,7 @@ def run_render_node(render_node_configs):
 	update_planetwoo()
 	remote_config_path = copy_data_files(render_node_config)
 
-	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (render_node_config['render_script'], remote_config_path))
+	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (render_node_config['dist_render']['render_script'], remote_config_path))
 	#run("bash -l -c '%s -c %s'" % (render_node_config['render_script'], remote_config_path))
 
 
@@ -182,6 +160,7 @@ def get_progress_from_host(render_node_configs):
 
 @parallel
 def get_node_results(render_node_configs):
+	#TODO: FIXME XXX: convert this function for new config file format
 	output_prefix = render_node_configs[env.host_string]['output_prefix']
 	num_jobs = len(render_node_configs[env.host_string]['jobs'])
 	host_stats = []
@@ -203,6 +182,7 @@ def get_results(config_path):
 @serial
 def load_results(config_path, connect_str, node_table, image_table, download_dir,
 		address_override=None, prefix_override=None):
+	#TODO: FIXME XXX: convert this function for new config file format
 	global_config=json.loads(open(config_path, 'r').read())
 	render_node_configs = create_machine_jobs(global_config)
 

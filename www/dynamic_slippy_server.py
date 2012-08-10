@@ -49,7 +49,7 @@ def load_config(config_path, conn_str, force_create, recreate_layers):
 	render_infos = {}
 
 	for layer_name in config['layer_order']:
-		layer = config[layer_name]
+		layer = config['layers'][layer_name]
 		cutter = load_cutter(layer)
 		renderer = load_renderer(layer)
 
@@ -65,7 +65,7 @@ def load_config(config_path, conn_str, force_create, recreate_layers):
 			print 'Recreating', storage_manager.node_table, storage_manager.image_table
 			storage_manager.recreate_tables()
 
-	return (tiletree.composite.TileCompositor(render_infos, config['layer_order'], config['extent']), config['layer_order'])
+	return (tiletree.composite.TileCompositor(render_infos, config['layer_order'], config['map_extent']), config['layer_order'])
 
 def main():
 	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")

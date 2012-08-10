@@ -113,10 +113,12 @@ class LabelClass:
 	def from_dict(self, in_dict):
 		self.__dict__.update(in_dict)
 
-class LabelRenderer:
+class LabelRenderer(tiletree.Renderer):
 	def __init__(self, mapfile_string, label_col_index, mapserver_layers,
 			min_zoom=0, max_zoom=100, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
-			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=0):
+			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=0,
+			info_cache_name=None):
+		tiletree.Renderer.__init__(self, img_w, img_h, info_cache_name)
 		self.mapfile = mapscript.fromstring(mapfile_string)
 		self.label_col_index = label_col_index
 		self.mapserver_layers = mapserver_layers

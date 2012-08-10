@@ -31,7 +31,7 @@ import json
 import subprocess
 
 def load_cutter(config):
-	cutter_type = config.get('cutter_type', 'null')
+	cutter_type = config.get('cutter_type', 'multi')
 	if(cutter_type == 'shapefileram'):
 		return load_shapefile_ram_cutter(config['shapefile_path'], config['shapefile_layer'])
 	if(cutter_type == 'shapefile'):
@@ -41,7 +41,11 @@ def load_cutter(config):
 	elif(cutter_type == 'postgres'):
 		return load_postgres_cutter(config['connect_string'], config['table_name'])
 	elif(cutter_type == 'multi'):
-		return tiletree.multi.MultiCutter([load_cutter(c) for c in config['cutters']])
+		cutters = []
+		for layer_name in config['layer_order']:
+			layer_config = config['layers'][layer_name]
+			cutters.append(load_cutter(layer_config))
+		return tiletree.multi.MultiCutter(cutters)
 	else:
 		return tiletree.NullGeomCutter()
 
@@ -53,16 +57,20 @@ def load_label_classes(layer_config, label_renderer):
 			label_renderer.add_label_class(layer_name, label_class)
 
 def load_storage_manager(config, job_id):
-	storage_type = config.get('storage_type', 'csv')
+	storage_type = config.get('dist_render_storage_type', 'multi')
 	if(storage_type == 'csv'):
 		tree_file_path = config['output_prefix'] + 'tree_%d.csv' % job_id
 		image_file_path = config['output_prefix'] + 'images_%d.csv' % job_id
 		return tiletree.csvstorage.CSVStorageManager(open(tree_file_path, 'w'), open(image_file_path, 'w'))
 	elif(storage_type == 'multi'):
-		return tiletree.multi.MultiStorageManager([load_storage_manager(c, job_id) for c in config['storage_managers']])
+		storage_managers = []
+		for layer_name in config['layer_order']:
+			layer_config = config['layers'][layer_name]
+			storage_managers.append(load_storage_manager(layer_config, job_id))
+		return tiletree.multi.MultiStorageManager(storage_managers)
 
 def load_renderer(config):
-	renderer_type = config.get('renderer_type', 'mapserver')
+	renderer_type = config.get('renderer_type', 'multi')
 
 	if(renderer_type == 'mapserver'):
 		mapfile_path = config['mapfile_path']
@@ -87,7 +95,11 @@ def load_renderer(config):
 		return renderer
 
 	elif(renderer_type == 'multi'):
-		return tiletree.multi.MultiRenderer([load_renderer(c) for c in config['renderers']])
+		renderers = []
+		for layer_name in config['layer_order']:
+			layer_config = config['layers'][layer_name]
+			renderers.append(load_renderer(layer_config))
+		return tiletree.multi.MultiRenderer(renderers)
 
 	return None
 
@@ -109,27 +121,16 @@ def load_maptree_cutter(shapefile_path, shapefile_layer):
 	qix_path = shapefile_root + '.qix'
 	return tiletree.shapefile.MaptreeCutter(shapefile_path, str(shapefile_layer), qix_path)
 
-def load_shapefile(config):
-	if(not config.get('load_shapefile_to_postgres',False)):
-		return
-	else:
-		subprocess.call(\
-				'%(prefix)sogr2ogr -f "PostgreSQL" "PG: %(conn_str)s" %(shp_path)s -nlt GEOMETRY %(shp_layer)s -overwrite -lco PRECISION=no' %\
-			{'conn_str':config['connect_string'], 'shp_path':config['shapefile_path'],
-			'shp_layer': config['shapefile_layer'], 'prefix':config['ogr_prefix']}, shell=True)
-
 def render_to_csv(config):
 	generate_jobs = []
 	count = 0
 
-	print "Loading shapefile."
-	load_shapefile(config)
 	print "Loading cutter."
 	cutter = load_cutter(config)
 
 	print "Creating jobs."
 	for job in config['jobs']:
-		log_file = open(config['output_prefix'] + 'render_%d.log' % count, 'w')
+		log_file = open(config['dist_render']['output_prefix'] + 'render_%d.log' % count, 'w')
 		start_checks_zoom = config.get('start_checks_zoom', None)
 		check_full = config.get('check_full', True)
 		renderer = load_renderer(config)
