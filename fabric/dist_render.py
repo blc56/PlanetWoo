@@ -201,7 +201,7 @@ def load_results(config_path, connect_str, node_table, image_table, download_dir
 		for x in range(0, len(render_node['jobs'])):
 			prefix = prefix_override
 			if(prefix_override == None):
-				prefix = os.path.basename(render_node['output_prefix'])
+				prefix = os.path.basename(render_node['dist_render']['output_prefix'])
 			address = address_override
 			if(address_override == None):
 				address = render_node['address']
