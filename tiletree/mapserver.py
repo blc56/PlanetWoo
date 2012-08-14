@@ -152,6 +152,8 @@ class MapServerRenderer(Renderer):
 		else:
 			self.mapfile.setExtent(node.min_x, node.min_y, node.max_x, node.max_y)
 
+		#print node.zoom_level, self.mapfile.scaledenom
+
 		#self.mapfile.loadOWSParameters(self.build_request(node.min_x, node.min_x, node.max_x, node.max_y))
 		img = self.mapfile.draw()
 

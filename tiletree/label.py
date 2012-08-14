@@ -492,6 +492,10 @@ class LabelRenderer(tiletree.Renderer):
 			result = layer.getResult(f)
 			shape = layer.getShape(result)
 			label_text = unicode(shape.getValue(self.label_col_index), 'latin_1')
+
+			if(not label_text):
+				continue
+
 			context, label_width, label_height, label_text =\
 				self.get_label_size(surface, label_text, label_class)
 
@@ -522,6 +526,7 @@ class LabelRenderer(tiletree.Renderer):
 		return (0, self.blank_img_bytes)
 
 	def render(self, node):
+
 		if(node.is_blank):
 			return self.render_blank(node)
 
