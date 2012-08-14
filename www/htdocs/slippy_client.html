@@ -28,26 +28,28 @@ function init() {
     });
     
     var osm = new OpenLayers.Layer.OSM();
-    var exo = new OpenLayers.Layer.OSM("ExoMap", "http://localhost:8080/slippy_map/${z}/${x}/${y}.png");
+	var woo = new OpenLayers.Layer.OSM("PlanetWoo", "http://localhost:8080/slippy_map/${z}/${x}/${y}.png",{
+		tileOptions:{crossOriginKeyword:null}
+	});
     //var gmap = new OpenLayers.Layer.Google("Google Streets");
     
     //map.addLayers([osm, gmap]);
-    map.addLayers([osm, exo]);
+    map.addLayers([woo, osm]);
 
     map.addControl(new OpenLayers.Control.LayerSwitcher());
 
     map.setCenter(
-        new OpenLayers.LonLat(10.2, 48.9).transform(
+        new OpenLayers.LonLat(0, 0).transform(
             new OpenLayers.Projection("EPSG:4326"),
             map.getProjectionObject()
         ), 
-        5
+        0
     );
 }
 init();
 </script>
 </head>
 <body onload="init()">
-<div id="map"/>
+<div id="map" style="background:black"/>
 <body>
 </html>
