@@ -156,13 +156,8 @@ class LabelRenderer(tiletree.Renderer):
 			x_buffer = x_scale * self.tile_buffer
 			y_buffer = y_scale * self.tile_buffer
 
-			#check if this is going to be a leaf node
-			if(self.point_labels):
-				rect = mapscript.rectObj(node.min_x - x_buffer, node.min_y - y_buffer,
-							node.max_x + x_buffer, node.max_y + y_buffer)
-			else:
-				rect = mapscript.rectObj(node.min_x, node.min_y,
-							node.max_x, node.max_y)
+			rect = mapscript.rectObj(node.min_x - x_buffer, node.min_y - y_buffer,
+						node.max_x + x_buffer, node.max_y + y_buffer)
 
 			self.mapfile.queryByRect(rect)
 
@@ -503,6 +498,7 @@ class LabelRenderer(tiletree.Renderer):
 			if(not self.mapfile.extent.toPolygon().intersects(shape)):
 				continue
 
+
 			is_blank = False
 			is_leaf = False
 
@@ -541,9 +537,8 @@ class LabelRenderer(tiletree.Renderer):
 		#hack to get the correct scale
 		self.mapfile.setExtent(node.min_x , node.min_y, node.max_x, node.max_y)
 		scale_denom = self.mapfile.scaledenom
-		if(self.point_labels):
-			self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
-					node.max_x + x_buffer, node.max_y + y_buffer)
+		self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
+				node.max_x + x_buffer, node.max_y + y_buffer)
 
 		node.is_blank = True
 		node.is_leaf = True
