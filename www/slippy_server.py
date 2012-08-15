@@ -26,6 +26,7 @@ import tiletree
 import tiletree.fsstorage
 import tiletree.postgres
 import tiletree.composite
+import tiletree.memcached
 
 class TileFetcher(tornado.web.RequestHandler):
 	def initialize(self, storage_manager, layers):
@@ -51,6 +52,7 @@ def main():
 	parser.add_argument('-c', '--conn-str', dest='conn_str', required=False, action='store',
 		default='dbname=planetwoo user=planetwoo')
 	parser.add_argument('-l', '--layer', dest='layers', required=True, nargs='+', help="tree-table,image-table")
+	parser.add_argument('-m', '--memcache', dest='memcache', required=False, nargs='+', help="List of memcached servers.")
 	args = parser.parse_args()
 
 	port = int(args.port)
@@ -66,6 +68,8 @@ def main():
 
 
 	compositor = tiletree.composite.TileCompositor(render_info_dict, render_layers)
+	if(args.memcache != None):
+		compositor = tiletree.memcached.MCDStorageManager(compositor, args.memcache, render_layers)
 
 	app = tornado.web.Application([
 		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, TileFetcher,
