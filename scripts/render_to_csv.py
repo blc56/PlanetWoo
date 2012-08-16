@@ -121,16 +121,17 @@ def load_maptree_cutter(shapefile_path, shapefile_layer):
 	qix_path = shapefile_root + '.qix'
 	return tiletree.shapefile.MaptreeCutter(shapefile_path, str(shapefile_layer), qix_path)
 
-def render_to_csv(config):
+def render_to_csv(config, ):
 	generate_jobs = []
 	count = 0
+	log_prefix= config.get('log_prefix','render_')
 
 	print "Loading cutter."
 	cutter = load_cutter(config)
 
 	print "Creating jobs."
 	for job in config['jobs']:
-		log_file = open(config['dist_render']['output_prefix'] + 'render_%d.log' % count, 'w')
+		log_file = open(config['dist_render']['output_prefix'] + log_prefix + ('%d.log' % count), 'w')
 		start_checks_zoom = config.get('start_checks_zoom', None)
 		check_full = config.get('check_full', True)
 		renderer = load_renderer(config)
