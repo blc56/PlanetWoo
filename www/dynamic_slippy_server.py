@@ -84,8 +84,11 @@ def main():
 	args = parser.parse_args()
 
 	port = int(args.port)
+	recreate_layers = []
+	if(args.recreate_layers != None):
+		recreate_layers = args.recreate_layers
 
-	compositor, layers = load_config(args.config_file, args.conn_str, args.force_create, args.recreate_layers)
+	compositor, layers = load_config(args.config_file, args.conn_str, args.force_create, recreate_layers)
 
 	app = tornado.web.Application([
 		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, DynamicTileFetcher,
