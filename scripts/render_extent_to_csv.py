@@ -16,25 +16,29 @@
 #You should have received a copy of the GNU General Public License
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
-import copy
-
-from render_to_csv import *
-
-def do_batch(config):
-	for batch in config['batch_render']:
-		new_config = copy.copy(config)
-		new_config.update(batch)
-		print "Now running:", batch
-		render_to_csv(new_config)
+from batch_render_to_csv import *
 
 def main():
 	parser = argparse.ArgumentParser(description="Multithreaded Mapserver Shapfile CSV Tile Renderer")
 	parser.add_argument('-c', '--config', dest='config', required=True, help='Path to configuration json file')
+	parser.add_argument('-e', '--extent', dest='extent', type=float, required=True, nargs='+', help="<minx> <miny> <maxx> <maxy>")
+	parser.add_argument('-b', '--batch', dest='batch', required=False, action='store_true', help="Call batch renderer?")
 	args = parser.parse_args()
 
-	config = json.loads(open(args.config, 'r').read())
-	do_batch(config)
+	if(len(args.extent) != 4):
+		raise Exception("Invalid extent!")
 
+	config = json.loads(open(args.config, 'r').read())
+	tile_coords = tiletree.extent_to_tile_coord(args.extent, config['map_extent'])
+	print 'Root Tile Coordinate:', tile_coords
+	config['dist_render']['start_zoom'] = tile_coords[0]
+	config['dist_render']['start_tile_x'] = tile_coords[1]
+	config['dist_render']['start_tile_y'] = tile_coords[2]
+
+	if(args.batch):
+		do_batch(config)
+	else:
+		render_to_csv(config)
 
 if(__name__ == '__main__'):
 	main()

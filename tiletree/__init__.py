@@ -59,6 +59,25 @@ def bbox_to_wkt(min_x, min_y, max_x, max_y):
 		'max_y': max_y,
 	}
 
+#find the tile coordinate that completely covers exent
+#this isn't very efficient, but I'm Lazy
+def extent_to_tile_coord(extent, map_extent):
+	ret_node = QuadTreeGenNode(min_x=map_extent[0],min_y=map_extent[1],max_x=map_extent[2],max_y=map_extent[3])
+	while(True):
+		next_node = None
+		new_nodes = ret_node.split()
+		for node in new_nodes:
+			if(node.min_x <= extent[0] and node.min_y <= extent[1] and node.max_x >= extent[2] and
+					node.max_y >= extent[3]):
+				next_node = node
+				break
+		if(next_node != None):
+			ret_node = next_node
+		else:
+			return (ret_node.zoom_level, ret_node.tile_x, ret_node.tile_y)
+				
+	
+
 def geo_coord_to_img(x, y, img_w, img_h, min_x, min_y, max_x, max_y):
 	x_scale = img_w  / float(max_x - min_x)
 	y_scale = img_h / float(max_y - min_y)
