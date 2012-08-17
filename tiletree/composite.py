@@ -74,9 +74,7 @@ class TileCompositor:
 				geom=geom, tile_x=x, tile_y=y, label_geoms=label_geoms[0])
 			renderer.tile_info(node, check_full=render_info.check_full)
 			img_bytes = renderer.render(node)[1]
-			storage_manager.store_node(node)
-			storage_manager.store_image(node, img_bytes)
-			storage_manager.flush()
+			storage_manager.store(node, img_bytes)
 			label_geoms[0] = node.label_geoms
 			if(render_info.name in layers):
 				return StringIO.StringIO(img_bytes.getvalue())

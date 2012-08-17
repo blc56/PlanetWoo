@@ -185,8 +185,8 @@ WHERE nodes.node_id = %%s AND images.image_id = nodes.image_id
 
 	def store_image(self, node, img_bytes):
 		curs = self.conn.cursor()
-		if(node.image_id == -1 or node.image_id == -2):
-			return 
+		#if(node.image_id == -1 or node.image_id == -2):
+			#return 
 
 		curs.execute(\
 """
@@ -204,8 +204,8 @@ INSERT INTO %s VALUES(%%(node_id)s, %%(zoom_level)s, %%(tile_x)s,
 
 
 	def store(self, node, img_bytes):
-		self.store_node(node)
 		self.store_image(node, img_bytes)
+		self.store_node(node)
 		self.conn.commit()
 
 	def flush(self):
