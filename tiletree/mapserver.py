@@ -111,8 +111,7 @@ class MapServerRenderer(Renderer):
 				if(check_full):
 					result = layer.getResult(0)
 					shape = layer.getShape(result)
-					bbox_shape = mapscript.shapeObj_fromWKT(
-						tiletree.bbox_to_wkt(node.min_x, node.min_y, node.max_x, node.max_y))
+					bbox_shape = self.mapfile.extent.toPolygon()
 					if(shape.contains(bbox_shape)):
 						node.is_full=True
 						node.is_leaf=True

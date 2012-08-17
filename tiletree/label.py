@@ -147,6 +147,9 @@ class LabelRenderer(tiletree.Renderer):
 		node.is_leaf = False
 		node.is_full = False
 
+		#when we call render() tile info will be computed
+		#go ahead an compute it if this node is not in a zoom level
+		#where this tile would be rendered
 		if(node.zoom_level < self.min_zoom):
 			#we know this is going to be a blank node
 			node.is_blank = True
@@ -167,14 +170,20 @@ class LabelRenderer(tiletree.Renderer):
 				layer = self.mapfile.getLayerByName(layer_name)
 				layer.open()
 				num_results = layer.getNumResults()
-				layer.close()
 				if(num_results > 0):
 					node.is_leaf = False
 					return
+				if(check_full and num_results == 1):
+					result = layer.getResult(0)
+					shape = layer.getShape(result)
+					bbox_shape = mapscript.extent.toPolygon()
+					if(shape.contains(bbox_shape)):
+						node.is_full=True
+				layer.close()
 
 		if(node.zoom_level > self.max_zoom):
 			node.is_blank = True
-			node.is_full = True
+			node.is_leaf = True
 
 	def draw_text(self, img_x, img_y, text, context):
 		context.move_to(img_x, img_y)
@@ -360,33 +369,35 @@ class LabelRenderer(tiletree.Renderer):
 		wkt = 'MULTILINESTRING((%(min_x)s %(y_pos)s, %(max_x)s %(y_pos)s))'
 		return mapscript.shapeObj.fromWKT(wkt % {'min_x':min_x, 'max_x':max_x, 'y_pos':y_pos})
 
-	def position_poly_label(self, shape, node, label_width, label_height):
-		x_scale = (node.max_x - node.min_x) / float(self.img_w)
-		y_scale = (node.max_y - node.min_y) / float(self.img_h)
-		label_geo_w = label_width * x_scale * .5
-		label_geo_h = label_height * y_scale * .5
-		x_repeat_interval = self.label_spacing * x_scale
-		y_repeat_interval = self.label_spacing * y_scale
+	def fast_position_poly_label(self, shape, node, ghost_x, ghost_y, x_scale, y_scale, min_label_x, max_label_x, label_geo_w, label_geo_h):
 		x_buffer = self.label_buffer * x_scale
 		y_buffer = self.label_buffer * y_scale
 
-		#this crashes :(
-		#shape = shape.simplify(min(x_scale, y_scale))
+		label_geo_bbox = (ghost_x - label_geo_w, ghost_y - label_geo_h,
+				ghost_x + label_geo_w + x_buffer, ghost_y + label_geo_h + y_buffer) 
 
-		seed_point = shape.getCentroid()
-		ghost_x, ghost_y  = self.find_poly_label_ghost(seed_point.x, seed_point.y, node,
-				x_repeat_interval,  y_repeat_interval)
-		min_label_x = ghost_x - (x_scale * self.label_adjustment_max)
-		max_label_x = ghost_x + (x_scale * self.label_adjustment_max)
+		label_shape = mapscript.rectObj(*label_geo_bbox).toPolygon()
+		if(not shape.contains(label_shape)):
+			return None
 
-		tile_shape = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y).toPolygon()
+		if(node.label_geoms != None):
+			if(label_shape.intersects(node.label_geoms)):
+				return None
 
+		return label_geo_bbox, label_shape
+
+	def slow_position_poly_label(self, shape, node, ghost_x, ghost_y, x_scale, y_scale, min_label_x, max_label_x, label_geo_w, label_geo_h):
+		x_buffer = self.label_buffer * x_scale
+		y_buffer = self.label_buffer * y_scale
 
 		y_pos = ghost_y
 		good_position = False
-		position_interval = min(shape.bounds.maxy, ghost_y + self.label_adjustment_max) -\
-			max(shape.bounds.miny, ghost_y - self.label_adjustment_max)
+		position_interval = min(shape.bounds.maxy, ghost_y + y_scale * self.label_adjustment_max) -\
+			max(shape.bounds.miny, ghost_y - y_scale * self.label_adjustment_max)
 		position_interval /= float(self.position_attempts)
+
+		tile_shape = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y).toPolygon()
+
 		#keep trying y positions until we find one that works
 		for attempt_iter in range(self.position_attempts):
 			#for this  y position, use a horizontal line to 
@@ -405,7 +416,6 @@ class LabelRenderer(tiletree.Renderer):
 				min_x = min(line.get(0).x, line.get(1).x)
 				max_x = max(line.get(0).x, line.get(1).x)
 				if((max_x - min_x) >= (label_geo_w * 2)):
-
 					#do a check that considers the height of the label
 					x_pos = (max_x + min_x) / 2.0
 					label_geo_bbox = (x_pos - label_geo_w, y_pos - label_geo_h,
@@ -436,11 +446,56 @@ class LabelRenderer(tiletree.Renderer):
 		if(not good_position):
 			return None
 
+		return label_geo_bbox, label_shape
+
+	def position_poly_label(self, shape, node, label_width, label_height):
+		x_scale = (node.max_x - node.min_x) / float(self.img_w)
+		y_scale = (node.max_y - node.min_y) / float(self.img_h)
+		label_geo_w = label_width * x_scale * .5
+		label_geo_h = label_height * y_scale * .5
+		x_repeat_interval = self.label_spacing * x_scale
+		y_repeat_interval = self.label_spacing * y_scale
+
+		#this crashes :(
+		#shape = shape.simplify(min(x_scale, y_scale))
+
+		seed_point = shape.getCentroid()
+		ghost_x, ghost_y = self.find_poly_label_ghost(seed_point.x, seed_point.y,
+				node, x_repeat_interval,  y_repeat_interval)
+
+		min_label_x = ghost_x - (x_scale * self.label_adjustment_max)
+		max_label_x = ghost_x + (x_scale * self.label_adjustment_max)
+		min_label_y = ghost_y - (y_scale * self.label_adjustment_max)
+		max_label_y = ghost_y + (y_scale * self.label_adjustment_max)
+
+		#if this label couldn't possibly intersect this tile + tile_buffer
+		#then skip it!
+		if(not bbox_check((min_label_x - label_geo_w, min_label_y - label_geo_h, 
+				max_label_x + label_geo_w, max_label_y + label_geo_h),
+				(self.mapfile.extent.minx, self.mapfile.extent.miny,
+				self.mapfile.extent.maxx, self.mapfile.extent.maxy))):
+			host_y = seed_y + y_spaces * y_repeat_interval
+			return None
+
+		pos_results = self.fast_position_poly_label(shape, node,
+				ghost_x, ghost_y, x_scale, y_scale, min_label_x, max_label_x,
+				label_geo_w, label_geo_h)
+		if(not pos_results):
+			pos_results = self.slow_position_poly_label(shape, node,
+					ghost_x, ghost_y, x_scale, y_scale, min_label_x, max_label_x,
+					label_geo_w, label_geo_h)
+		if(not pos_results):
+			return None
+
+		label_geo_bbox, label_shape = pos_results
+
+		#update label_geoms
 		if(node.label_geoms != None):
-			node.label_geoms =label_shape.Union(node.label_geoms)
+			node.label_geoms = label_shape.Union(node.label_geoms)
 		else:
 			node.label_geoms = label_shape
 
+		#check if this label is in the tile
 		is_in_tile = False
 		if(bbox_check(label_geo_bbox, (node.min_x, node.min_y, node.max_x, node.max_y))):
 			is_in_tile = True
@@ -497,7 +552,6 @@ class LabelRenderer(tiletree.Renderer):
 			#weed out some false positives
 			if(not self.mapfile.extent.toPolygon().intersects(shape)):
 				continue
-
 
 			is_blank = False
 			is_leaf = False
