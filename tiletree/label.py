@@ -153,33 +153,34 @@ class LabelRenderer(tiletree.Renderer):
 		if(node.zoom_level < self.min_zoom):
 			#we know this is going to be a blank node
 			node.is_blank = True
+			return
 
-			x_scale = (node.max_x - node.min_x) / float(self.img_w) 
-			y_scale = (node.max_y - node.min_y) / float(self.img_h)
-			x_buffer = x_scale * self.tile_buffer
-			y_buffer = y_scale * self.tile_buffer
+			#x_scale = (node.max_x - node.min_x) / float(self.img_w) 
+			#y_scale = (node.max_y - node.min_y) / float(self.img_h)
+			#x_buffer = x_scale * self.tile_buffer
+			#y_buffer = y_scale * self.tile_buffer
 
-			rect = mapscript.rectObj(node.min_x - x_buffer, node.min_y - y_buffer,
-						node.max_x + x_buffer, node.max_y + y_buffer)
+			#rect = mapscript.rectObj(node.min_x - x_buffer, node.min_y - y_buffer,
+						#node.max_x + x_buffer, node.max_y + y_buffer)
 
-			self.mapfile.queryByRect(rect)
+			#self.mapfile.queryByRect(rect)
 
-			#check if this is going to be a leaf node
-			node.is_leaf = True
-			for layer_name in self.mapserver_layers:
-				layer = self.mapfile.getLayerByName(layer_name)
-				layer.open()
-				num_results = layer.getNumResults()
-				if(num_results > 0):
-					node.is_leaf = False
-					return
-				if(check_full and num_results == 1):
-					result = layer.getResult(0)
-					shape = layer.getShape(result)
-					bbox_shape = mapscript.extent.toPolygon()
-					if(shape.contains(bbox_shape)):
-						node.is_full=True
-				layer.close()
+			##check if this is going to be a leaf node
+			#node.is_leaf = True
+			#for layer_name in self.mapserver_layers:
+				#layer = self.mapfile.getLayerByName(layer_name)
+				#layer.open()
+				#num_results = layer.getNumResults()
+				#if(num_results > 0):
+					#node.is_leaf = False
+					#return
+				#if(check_full and num_results == 1):
+					#result = layer.getResult(0)
+					#shape = layer.getShape(result)
+					#bbox_shape = mapscript.extent.toPolygon()
+					#if(shape.contains(bbox_shape)):
+						#node.is_full=True
+				#layer.close()
 
 		if(node.zoom_level > self.max_zoom):
 			node.is_blank = True
