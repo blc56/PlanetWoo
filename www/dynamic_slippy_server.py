@@ -50,6 +50,8 @@ def load_config(config_path, conn_str, force_create, recreate_layers):
 
 	for layer_name in config['layer_order']:
 		layer = config['layers'][layer_name]
+		#apply the dynamic override settings
+		layer.update(layer.get('dynamic_override', {}))
 		cutter = load_cutter(layer)
 		renderer = load_renderer(layer)
 
