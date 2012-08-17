@@ -140,6 +140,11 @@ def run_render_node(render_node_configs):
 	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (render_node_config['dist_render']['render_script'], remote_config_path))
 	#run("bash -l -c '%s -c %s'" % (render_node_config['render_script'], remote_config_path))
 
+def render_helper(global_config):
+	render_node_configs = create_machine_jobs(global_config)
+	render_hosts = [n['address'] for n in render_node_configs.values()]
+	execute(run_render_node, hosts=render_hosts, render_node_configs=render_node_configs)
+
 
 @task
 @serial
@@ -150,9 +155,8 @@ def render(config_path, layer_order=None):
 		print layer_order
 		global_config['layer_order'] = json.loads(layer_order)
 
-	render_node_configs = create_machine_jobs(global_config)
-	render_hosts = [n['address'] for n in render_node_configs.values()]
-	execute(run_render_node, hosts=render_hosts, render_node_configs=render_node_configs)
+	render_helper(global_config)
+
 
 def get_progress_from_host(render_node_configs):
 	output_prefix = render_node_configs[env.host_string]['dist_render']['output_prefix']
