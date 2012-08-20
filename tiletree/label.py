@@ -332,6 +332,8 @@ class LabelRenderer(tiletree.Renderer):
 
 	def position_point_label(self, shape, node, label_width, label_height, where_ud='center', where_lr='right'):
 		seed_point = shape.getCentroid()
+		if(seed_point == None):
+			return None
 
 		x_scale = (node.max_x - node.min_x) / float(self.img_w)
 		y_scale = (node.max_y - node.min_y) / float(self.img_h)
@@ -461,6 +463,8 @@ class LabelRenderer(tiletree.Renderer):
 		#shape = shape.simplify(min(x_scale, y_scale))
 
 		seed_point = shape.getCentroid()
+		if(seed_point == None):
+			return None
 		ghost_x, ghost_y = self.find_poly_label_ghost(seed_point.x, seed_point.y,
 				node, x_repeat_interval,  y_repeat_interval)
 
