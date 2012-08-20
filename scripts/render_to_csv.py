@@ -56,17 +56,18 @@ def load_label_classes(layer_config, label_renderer):
 			label_class.from_dict(label_class_dict)
 			label_renderer.add_label_class(layer_name, label_class)
 
-def load_storage_manager(config, job_id):
+def load_storage_manager(config, job_id, run_prefix=''):
 	storage_type = config.get('dist_render_storage_type', 'multi')
 	if(storage_type == 'csv'):
-		tree_file_path = config['output_prefix'] + 'tree_%d.csv' % job_id
-		image_file_path = config['output_prefix'] + 'images_%d.csv' % job_id
+		prefix = config['output_prefix'] + run_prefix
+		tree_file_path =  prefix + 'tree_%d.csv' % job_id
+		image_file_path = prefix + 'images_%d.csv' % job_id
 		return tiletree.csvstorage.CSVStorageManager(open(tree_file_path, 'w'), open(image_file_path, 'w'))
 	elif(storage_type == 'multi'):
 		storage_managers = []
 		for layer_name in config['layer_order']:
 			layer_config = config['layers'][layer_name]
-			storage_managers.append(load_storage_manager(layer_config, job_id))
+			storage_managers.append(load_storage_manager(layer_config, job_id, run_prefix))
 		return tiletree.multi.MultiStorageManager(storage_managers)
 
 def load_renderer(config):
@@ -131,11 +132,13 @@ def render_to_csv(config, ):
 
 	print "Creating jobs."
 	for job in config['jobs']:
-		log_file = open(config['dist_render']['output_prefix'] + log_prefix + ('%d.log' % count), 'w')
+		prefix = config['dist_render']['output_prefix'] + log_prefix
+		prefix += config.get('run_prefix', '')
+		log_file = open(prefix + log_prefix + ('%d.log' % count), 'w')
 		start_checks_zoom = config.get('start_checks_zoom', None)
 		check_full = config.get('check_full', True)
 		renderer = load_renderer(config)
-		storage_manager = load_storage_manager(config, count)
+		storage_manager = load_storage_manager(config, count, config.get('run_prefix',''))
 				
 		start_node = tiletree.QuadTreeGenNode(min_x=job['extent'][0], min_y=job['extent'][1],
 			max_x=job['extent'][2], max_y=job['extent'][3], zoom_level=job['start_zoom'],

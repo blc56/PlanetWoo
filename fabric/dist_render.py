@@ -145,7 +145,6 @@ def render_helper(global_config):
 	render_hosts = [n['address'] for n in render_node_configs.values()]
 	execute(run_render_node, hosts=render_hosts, render_node_configs=render_node_configs)
 
-
 @task
 @serial
 def render(config_path, layer_order=None):
@@ -168,9 +167,8 @@ def get_progress_from_host(render_node_configs):
 	return host_stats
 
 @parallel
-def get_node_results(render_node_configs):
-	#TODO: FIXME XXX: convert this function for new config file format
-	output_prefix = render_node_configs[env.host_string]['output_prefix']
+def get_node_results(global_config, render_node_configs, download_path="./"):
+	output_prefix = global_config['dist_render']['output_prefix']
 	num_jobs = len(render_node_configs[env.host_string]['jobs'])
 	host_stats = []
 	for x in range(num_jobs):
@@ -179,13 +177,16 @@ def get_node_results(render_node_configs):
 		get(output_prefix + '*.log', env.host)
 	return host_stats
 
-@task
-@serial
-def get_results(config_path):
-	global_config=json.loads(open(config_path, 'r').read())
+def get_results_helper(global_config, download_path="./"):
 	render_node_configs = create_machine_jobs(global_config)
 	render_hosts = [n['address'] for n in render_node_configs.values()]
-	execute(get_node_results, render_node_configs, hosts=render_hosts)
+	execute(get_node_results, global_config, render_node_configs, download_path=download_path, hosts=render_hosts)
+
+@task
+@serial
+def get_results(config_path, download_path="./"):
+	global_config=json.loads(open(config_path, 'r').read())
+	get_results_helper(global_config, download_path=download_path)
 
 @task
 @serial
@@ -195,24 +196,24 @@ def load_results(config_path, connect_str, node_table, image_table, download_dir
 	global_config=json.loads(open(config_path, 'r').read())
 	render_node_configs = create_machine_jobs(global_config)
 
-	is_first_load = True
-	storage = tiletree.postgres.PostgresStorageManager(connect_str, node_table, image_table)
-	for render_node in render_node_configs.values():
-		if(is_first_load):
-			print 'Create tables.'
-			is_first_load = False
-			storage.recreate_tables()
-		for x in range(0, len(render_node['jobs'])):
-			prefix = prefix_override
-			if(prefix_override == None):
-				prefix = os.path.basename(render_node['dist_render']['output_prefix'])
-			address = address_override
-			if(address_override == None):
-				address = render_node['address']
-			tree_path = os.path.join(download_dir, address) + '/' + prefix + 'tree_%d.csv' % x
-			image_path = os.path.join(download_dir, address) + '/' + prefix + 'images_%d.csv' % x
-			print tree_path, image_path
-			storage.copy(open(tree_path, 'r'), open(image_path, 'r'))
+	#is_first_load = True
+	#storage = tiletree.postgres.PostgresStorageManager(connect_str, node_table, image_table)
+	#for render_node in render_node_configs.values():
+		#if(is_first_load):
+			#print 'Create tables.'
+			#is_first_load = False
+			#storage.recreate_tables()
+		#for x in range(0, len(render_node['jobs'])):
+			#prefix = prefix_override
+			#if(prefix_override == None):
+				#prefix = os.path.basename(render_node['dist_render']['output_prefix'])
+			#address = address_override
+			#if(address_override == None):
+				#address = render_node['address']
+			#tree_path = os.path.join(download_dir, address) + '/' + prefix + 'tree_%d.csv' % x
+			#image_path = os.path.join(download_dir, address) + '/' + prefix + 'images_%d.csv' % x
+			#print tree_path, image_path
+			#storage.copy(open(tree_path, 'r'), open(image_path, 'r'))
 
 @task
 @serial

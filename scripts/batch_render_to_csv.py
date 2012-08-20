@@ -17,6 +17,8 @@
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
 import copy
+import gc
+import mapscript
 
 from render_to_csv import *
 
@@ -26,13 +28,16 @@ def do_batch(config):
 		new_config.update(batch)
 		print "Now running:", batch
 		render_to_csv(new_config)
+		mapscript.msCleanup()
 
 def main():
 	parser = argparse.ArgumentParser(description="Multithreaded Mapserver Shapfile CSV Tile Renderer")
 	parser.add_argument('-c', '--config', dest='config', required=True, help='Path to configuration json file')
+	parser.add_argument('-p', '--prefix', dest='prefix', required=False, help='Additional prefix for output files.', default='')
 	args = parser.parse_args()
 
 	config = json.loads(open(args.config, 'r').read())
+	config['run_prefix'] = args.prefix
 	do_batch(config)
 
 
