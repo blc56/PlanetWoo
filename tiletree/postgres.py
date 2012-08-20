@@ -69,10 +69,9 @@ image_id BIGINT,
 is_leaf BOOLEAN,
 is_blank BOOLEAN,
 is_full BOOLEAN,
-metadata VARCHAR(512),
-CONSTRAINT image_fkey FOREIGN KEY (image_id) REFERENCES %s (image_id)
+metadata VARCHAR(512)
 );
-""" % (self.node_table,self.image_table))
+""" % (self.node_table))
 		self.conn.commit()
 
 	def clear_extent(self, extent, map_extent):
@@ -82,8 +81,8 @@ CONSTRAINT image_fkey FOREIGN KEY (image_id) REFERENCES %s (image_id)
 		curs.execute(\
 """
 DELETE FROM %(node_table)s node
-WHERE node.zoom_level >= %%(z)s AND (node.tile_x / (2^(node.zoom_level - %%(z)s)))::int = %%(x)s AND
-(node.tile_y / (2^(node.zoom_level - %%(z)s)))::int = %%(y)s
+WHERE node.zoom_level >= %%(z)s AND floor(node.tile_x / (2^(node.zoom_level - %%(z)s)))::int = %%(x)s AND
+floor(node.tile_y / (2^(node.zoom_level - %%(z)s)))::int = %%(y)s
 """ % {'node_table':self.node_table,},
 	{'z':tile_coord[0], 'x':tile_coord[1], 'y':tile_coord[2]})
 
@@ -92,9 +91,6 @@ WHERE node.zoom_level >= %%(z)s AND (node.tile_x / (2^(node.zoom_level - %%(z)s)
 		#read header lines
 		tree_file.readline()
 		image_file.readline()
-
-		#temporarily drop table constraints
-		curs.execute('ALTER TABLE %s DROP CONSTRAINT image_fkey' % self.node_table)
 
 		curs.copy_from(tree_file, self.node_table, ',', 'None')
 
@@ -120,14 +116,10 @@ WHERE node.zoom_level >= %%(z)s AND (node.tile_x / (2^(node.zoom_level - %%(z)s)
 					continue
 				have_full=True
 
+			curs.execute('DELETE FROM %s WHERE image_id = %%s' % self.image_table, (image_id,))
 			image_bytes = tiletree.decode_img_bytes(image_bytes)
 			curs.execute('INSERT INTO %s VALUES(%%s, %%s)' % (self.image_table,),
 				(image_id, Binary(image_bytes)) )
-
-		#Add the constraint back in
-		curs.execute(\
-"""ALTER TABLE %s ADD CONSTRAINT image_fkey FOREIGN KEY (image_id) REFERENCES %s (image_id)
-""" % (self.node_table, self.image_table))
 
 	def fetch_info(self, zoom_level, x, y):
 		#first, try to find the tile at this zoom level
@@ -188,6 +180,7 @@ WHERE nodes.node_id = %%s AND images.image_id = nodes.image_id
 		#if(node.image_id == -1 or node.image_id == -2):
 			#return 
 
+		curs.execute('DELETE FROM %s WHERE image_id = %%s' % self.image_table, (node.image_id,))
 		curs.execute(\
 """
 INSERT INTO %s VALUES(%%s, %%s)
