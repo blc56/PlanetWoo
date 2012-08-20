@@ -431,6 +431,7 @@ class QuadTreeGenStats:
 	def savings(self):
 		if(self.virtual_nodes > 0):
 			return 1 - (self.total_nodes_rendered / float(self.virtual_nodes))
+		return float('nan')
 
 	def time(self):
 		if(self.stop_time != None):
@@ -453,7 +454,10 @@ class QuadTreeGenStats:
 		final_est_node_count = (self.virtual_percent_complete) * est_node_count + \
 				(1 - self.virtual_percent_complete) * ((1-self.savings_guess) * self.virtual_total_nodes)
 
-		return (final_est_node_count) / self.nodes_per_sec() - self.time()
+		nps = self.nodes_per_sec()
+		if(nps > 0):
+			return final_est_node_count / nps - self.time()
+		return float('nan')
 
 	def nodes_per_sec(self):
 		time = self.time()
@@ -489,7 +493,7 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, st
 	#render this node
 	node.image_id, this_img_bytes = renderer.render(node)
 
-	if(node.zoom_level>= stop_level):
+	if(node.zoom_level >= stop_level):
 		stats.track(node, True)
 	else:
 		stats.track(node, False)

@@ -51,6 +51,9 @@ class MapServerRenderer(Renderer):
 
 	def tile_info(self, node, check_full=True):
 		if(self.skip_info):
+			node.is_blank = False
+			node.is_full = False
+			node.is_leaf = False
 			return
 
 		if(self.info_cache != None):
