@@ -82,7 +82,8 @@ def load_renderer(config):
 			min_zoom=config.get('min_zoom', 0), max_zoom=config.get('max_zoom', 20),
 			cache_fulls=config.get('cache_fulls', True), srs=config.get('srs', 'EPSG:3857'),
 			trust_cutter=config.get('trust_cutter', False), tile_buffer=config.get('tile_buffer', 0),
-			info_cache_name=config.get('tile_info_cache', None))
+			info_cache_name=config.get('tile_info_cache', None),
+			skip_info=config.get('skip_info',False))
 
 	elif(renderer_type == 'label'):
 		mapfile_path = config['mapfile_path']

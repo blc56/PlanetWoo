@@ -34,25 +34,12 @@ def main():
 	parser = argparse.ArgumentParser(description="Multithreaded Mapserver Shapfile CSV Tile Renderer")
 	parser.add_argument('-c', '--config', dest='config', required=True, help='Path to configuration json file')
 	parser.add_argument('-p', '--prefix', dest='prefix', required=False, help='Additional prefix for output files.', default='')
-	parser.add_argument('-e', '--extent', dest='extent', type=float, required=False, nargs='+', help="<minx> <miny> <maxx> <maxy>")
 	args = parser.parse_args()
 
 	config = json.loads(open(args.config, 'r').read())
-
-	if(len(args.extent) > 0):
-		if(len(args.extent) != 4):
-			raise Exception("Invalid extent!")
-
-		tile_coords = tiletree.extent_to_tile_coord(args.extent, config['map_extent'])
-		print args.extent, config['map_extent']
-		print 'Root Tile Coordinate:', tile_coords
-		config['dist_render']['start_zoom'] = tile_coords[0]
-		config['dist_render']['start_tile_x'] = tile_coords[1]
-		config['dist_render']['start_tile_y'] = tile_coords[2]
-
 	config['run_prefix'] = args.prefix
-	do_batch(config)
 
+	do_batch(config)
 
 if(__name__ == '__main__'):
 	main()

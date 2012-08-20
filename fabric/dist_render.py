@@ -45,6 +45,17 @@ def split_bbox(min_num_boxes, start_zoom, start_tile_x, start_tile_y, stop_zoom,
 
 def create_machine_jobs(global_config):
 	dist_render_config = global_config['dist_render']
+
+	#override parameteres with render_extent if necessary
+	if('render_extent' in dist_render_config):
+		render_extent = dist_render_config['render_extent']
+		tile_coords = tiletree.extent_to_tile_coord(render_extent, global_config['map_extent'])
+		print 'Root Tile Coordinate:', tile_coords
+		dist_render_config['start_zoom'] = tile_coords[0]
+		dist_render_config['start_tile_x'] = tile_coords[1]
+		dist_render_config['start_tile_y'] = tile_coords[2]
+
+
 	total_num_threads = sum(x['num_threads'] for x in dist_render_config['render_nodes'])
 	min_num_jobs = dist_render_config.get('min_num_jobs', 1)
 	if(total_num_threads > min_num_jobs):
@@ -81,7 +92,7 @@ def create_machine_jobs(global_config):
 		render_node_configs[render_node['address']] = this_config
 
 	#add in any left over bits at the top of the tree
-	if(fill_to_zoom_level >= 0):
+	if(fill_to_zoom_level >= dist_render_config['start_zoom']):
 		render_node_configs.values()[0]['jobs'].append({
 			'extent': global_config['map_extent'],
 			'start_zoom': dist_render_config['start_zoom'],
@@ -155,7 +166,6 @@ def render(config_path, layer_order=None):
 		global_config['layer_order'] = json.loads(layer_order)
 
 	render_helper(global_config)
-
 
 def get_progress_from_host(render_node_configs):
 	output_prefix = render_node_configs[env.host_string]['dist_render']['output_prefix']

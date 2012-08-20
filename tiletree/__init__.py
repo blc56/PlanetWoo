@@ -395,14 +395,14 @@ class QuadTreeGenStats:
 		self.start_time = time.time()
 		self.stop_time = None
 
-	def track(self, node):
+	def track(self, node, is_leaf=False):
 		if(node.is_blank):
 			self.blanks_rendered[node.zoom_level] += 1
 			self.total_blanks_rendered += 1
 		elif(node.is_full):
 			self.fulls_rendered[node.zoom_level] += 1
 			self.total_fulls_rendered += 1
-		if(node.is_leaf):
+		if(node.is_leaf or is_leaf):
 			self.leafs_rendered[node.zoom_level] += 1
 			self.total_leafs_rendered += 1
 		self.nodes_rendered[node.zoom_level] += 1
@@ -489,15 +489,15 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, st
 	#render this node
 	node.image_id, this_img_bytes = renderer.render(node)
 
-	if(node.zoom_level >= stop_level):
-		node.is_leaf = True
-
-	stats.track(node)
+	if(node.zoom_level>= stop_level):
+		stats.track(node, True)
+	else:
+		stats.track(node, False)
 	
 	storage_manager.store(node, this_img_bytes)
 
 	#split this node 
-	if(node.is_leaf):
+	if(node.is_leaf or node.zoom_level >= stop_level):
 		return []
 
 	#figure out the geometry associated with a node at start_checks_zoom - 1
