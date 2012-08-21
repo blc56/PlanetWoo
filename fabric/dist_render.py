@@ -107,7 +107,6 @@ def create_machine_jobs(global_config):
 
 @parallel
 def update_planetwoo(prefix="/opt/planetwoo"):
-	return
 	with cd('%s/PlanetWoo/' % prefix):
 		sudo('git pull')
 @parallel
@@ -145,7 +144,7 @@ def run_render_node(render_node_configs):
 	if(len(host_parts) == 2):
 		env.user=host_parts[0]
 
-	update_planetwoo()
+	#update_planetwoo()
 	remote_config_path = copy_data_files(render_node_config)
 
 	run("dtach -n /tmp/tiletree bash -l -c '%s -c %s'" % (render_node_config['dist_render']['render_script'], remote_config_path))
