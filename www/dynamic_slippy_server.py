@@ -28,6 +28,7 @@ import tiletree.mapserver
 import tiletree.postgres
 import tiletree.composite
 import tiletree.label
+import tiletree.memcached
 from scripts.render_to_csv import load_cutter, load_renderer
 
 class DynamicTileFetcher(tornado.web.RequestHandler):
@@ -44,7 +45,7 @@ class DynamicTileFetcher(tornado.web.RequestHandler):
 		self.set_header('Content-Type', 'image/png')
 		self.write(img_file.read())
 
-def load_config(config_path, conn_str, force_create, recreate_layers):
+def load_config(config_path, conn_str, force_create, recreate_layers, memcache):
 	config = json.loads(open(config_path, 'r').read())
 	render_infos = {}
 
@@ -67,7 +68,11 @@ def load_config(config_path, conn_str, force_create, recreate_layers):
 			print 'Recreating', storage_manager.node_table, storage_manager.image_table
 			storage_manager.recreate_tables()
 
-	return (tiletree.composite.TileCompositor(render_infos, config['layer_order'], config['map_extent']), config['layer_order'])
+		compositor = tiletree.composite.TileCompositor(render_infos, config['layer_order'], config['map_extent'])
+		if(memcache != None):
+			compositor = tiletree.memcached.MCDStorageManager(compositor, memcache, config['layer_order'])
+
+	return (compositor, config['layer_order'])
 
 def main():
 	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")
@@ -83,6 +88,7 @@ def main():
 			help='Drop/create all layers')
 	parser.add_argument('-r', '--recreate_layers', nargs='+', dest='recreate_layers', required=False,
 			help='List of layers to drop/create')
+	parser.add_argument('-m', '--memcache', dest='memcache', required=False, nargs='+', help="List of memcached servers.")
 	args = parser.parse_args()
 
 	port = int(args.port)
@@ -90,7 +96,7 @@ def main():
 	if(args.recreate_layers != None):
 		recreate_layers = args.recreate_layers
 
-	compositor, layers = load_config(args.config_file, args.conn_str, args.force_create, recreate_layers)
+	compositor, layers = load_config(args.config_file, args.conn_str, args.force_create, recreate_layers, args.memcache)
 
 	app = tornado.web.Application([
 		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, DynamicTileFetcher,

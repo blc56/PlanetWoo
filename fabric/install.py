@@ -188,9 +188,12 @@ def install_deps(prefix="/opt/planetwoo/"):
 	sudo('apt-get -y install python2.7-cairo')
 	sudo('apt-get -y install git')
 	sudo('apt-get -y install screen dtach')
+	sudo('apt-get -y install libmemcached-dev')
 	sudo('pip install shapely')
 	sudo('pip install -U PIL')
 	sudo('pip install psycopg2')
+	sudo('pip install python-memcached')
+	sudo('pip install tornado')
 
 	sudo('mkdir -p %s' % os.path.join(prefix,'src'))
 
