@@ -18,7 +18,6 @@
 
 import copy
 import gc
-import mapscript
 
 from render_to_csv import *
 
@@ -28,7 +27,6 @@ def do_batch(config):
 		new_config.update(batch)
 		print "Now running:", batch
 		render_to_csv(new_config)
-		mapscript.msCleanup()
 
 def main():
 	parser = argparse.ArgumentParser(description="Multithreaded Mapserver Shapfile CSV Tile Renderer")
