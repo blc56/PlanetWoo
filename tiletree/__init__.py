@@ -42,13 +42,28 @@ ESTIMATED_SAVINGS = .90
 	#print "SPEEDUP?"
 
 def palette_png_bytes(png_bytes):
-	#output_bytes = StringIO.StringIO()
-	#output_img = Image.open(png_bytes)
-	#output_img = output_img.convert('P', palette=Image.ADAPTIVE, colors=256)
-	#output_img.save(output_bytes, format='PNG', mode='P')
-	#return StringIO.StringIO(output_bytes.getvalue())
-	#TODO: FIXME: make this work
-	return png_bytes
+	output_bytes = StringIO.StringIO()
+	output_img = Image.open(png_bytes)
+	output_img.load()
+
+	if(output_img.mode != 'RGBA'):
+		output_img = output_img.convert('RGBA')
+		output_img.load()
+
+	#extract the alpha channel
+	alpha = output_img.split()[-1]
+	#strip the alpha channel from the image
+	output_img = output_img.convert('RGB')
+	#now palette the image, reserving the last color for transparency
+	output_img = output_img.convert('P', palette=Image.ADAPTIVE, colors=255)
+	#mask out transparent values
+	mask = Image.eval(alpha, lambda a: 255 if a <=127 else 0)
+	#adn assign transparent colors the reserved transparency color
+	output_img.paste(255, mask)
+
+	output_img.save(output_bytes, format='PNG', mode='P', transparency=255)
+
+	return StringIO.StringIO(output_bytes.getvalue())
 
 
 def bbox_to_wkt(min_x, min_y, max_x, max_y):

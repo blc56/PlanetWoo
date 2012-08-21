@@ -296,6 +296,7 @@ class LabelRenderer(tiletree.Renderer):
 		img_bytes = StringIO.StringIO()
 		img_id = tiletree.build_node_id(node.zoom_level, node.tile_x, node.tile_y)
 		surface.write_to_png(img_bytes)
+		#img_bytes = tiletree.palette_png_bytes(StringIO.StringIO(img_bytes.getvalue()))
 		return (img_id, img_bytes)
 
 	#returns (is_in_tile, bbox)

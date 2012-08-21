@@ -147,7 +147,8 @@ class MapServerRenderer(Renderer):
 		output_bytes = StringIO.StringIO()
 		output_surface.write_to_png(output_bytes)
 
-		return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
+		#return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
+		return StringIO.StringIO(output_bytes.getvalue())
 
 	def render_normal(self, node):
 		if(self.img_buffer > 0):

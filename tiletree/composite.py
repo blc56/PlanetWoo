@@ -19,6 +19,7 @@
 import StringIO
 import tiletree
 import cairo
+#import Image
 
 class RenderInfo:
 	def __init__(self, name, storage_manager, renderer, cutter, check_full, start_zoom=None,
@@ -42,7 +43,6 @@ class TileCompositor:
 		tile_generator = ( self.render_infos[l].storage_manager.fetch(zoom_level, x, y)
 				for l in layers )
 		return self.fetch_helper(tile_generator)
-
 
 
 	def dynamic_fetch(self, zoom_level, x, y, layers):
@@ -81,14 +81,14 @@ class TileCompositor:
 			return None
 
 	def fetch_helper(self, tile_generator):
-		#TODO: use imagemagick to see if paletting is faster
-		#then composite those layers together
 		output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 256, 256)
 		output_context = cairo.Context(output_surface)
 		for tile in tile_generator:
 			if(tile == None):
 				continue
+
 			tile_img = cairo.ImageSurface.create_from_png(tile)
+
 			output_context.set_source_surface(tile_img, 0, 0)
 			output_context.paint()
 
@@ -96,4 +96,5 @@ class TileCompositor:
 		output_surface.write_to_png(output_bytes)
 
 		return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
+		#return StringIO.StringIO(output_bytes.getvalue())
 
