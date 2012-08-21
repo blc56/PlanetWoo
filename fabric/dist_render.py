@@ -105,6 +105,7 @@ def create_machine_jobs(global_config):
 
 	return render_node_configs
 
+@task
 @parallel
 def update_planetwoo(prefix="/opt/planetwoo"):
 	with cd('%s/PlanetWoo/' % prefix):
