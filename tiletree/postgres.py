@@ -24,8 +24,12 @@ import StringIO
 import shapely.wkb
 
 class PostgresStorageManager:
-	def __init__(self, connect_str, node_table, image_table):
-		self.conn = connect(connect_str)
+	def __init__(self, connect_str, node_table, image_table, connection=None):
+		if(connect_str == None):
+			self.conn = connection
+		else:
+			self.conn = connect(connect_str)
+
 		self.node_table = node_table
 		self.image_table = image_table
 

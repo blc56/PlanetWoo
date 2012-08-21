@@ -21,6 +21,7 @@ import tornado.ioloop
 import tornado.web
 import argparse
 import json
+import psycopg2
 
 sys.path.append('../')
 import tiletree
@@ -49,6 +50,8 @@ def load_config(config_path, conn_str, force_create, recreate_layers, memcache):
 	config = json.loads(open(config_path, 'r').read())
 	render_infos = {}
 
+	postgres_conn = psycopg2.connect(conn_str)
+
 	for layer_name in config['layer_order']:
 		layer = config['layers'][layer_name]
 		#apply the dynamic override settings
@@ -56,8 +59,9 @@ def load_config(config_path, conn_str, force_create, recreate_layers, memcache):
 		cutter = load_cutter(layer)
 		renderer = load_renderer(layer)
 
-		storage_manager = tiletree.postgres.PostgresStorageManager(conn_str, layer['tree_table'],
-			layer['image_table'])
+		#have all of the storage_managers use the same connection so we don't overwhelm postgres
+		storage_manager = tiletree.postgres.PostgresStorageManager(None, layer['tree_table'],
+			layer['image_table'], postgres_conn)
 		render_infos[layer_name] = tiletree.composite.RenderInfo(layer_name, storage_manager, renderer, cutter,
 			layer.get('check_full', True), layer.get('start_zoom', None), layer.get('stop_zoom', None))
 

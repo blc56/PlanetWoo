@@ -27,6 +27,7 @@ import tiletree.fsstorage
 import tiletree.postgres
 import tiletree.composite
 import tiletree.memcached
+import psycopg2
 
 class TileFetcher(tornado.web.RequestHandler):
 	def initialize(self, storage_manager, layers):
@@ -60,9 +61,10 @@ def main():
 	render_info_dict = {}
 	render_layers = []
 	print args.layers
+	postgres_conn = psycopg2.connect(args.conn_str)
 	for layer in args.layers:
 		tree_table, image_table = layer.split(',')
-		storage_manager = tiletree.postgres.PostgresStorageManager(args.conn_str, tree_table, image_table)
+		storage_manager = tiletree.postgres.PostgresStorageManager(None, tree_table, image_table, postgres_conn)
 		render_info_dict[tree_table] = tiletree.composite.RenderInfo(layer, storage_manager, None, None, False)
 		render_layers.append(tree_table)
 
