@@ -137,6 +137,13 @@ class LabelRenderer(tiletree.Renderer):
 			raise Exception("Bad parameters")
 		self.label_classes = {}
 		self.blank_img_bytes = None
+		self.font_faces = {}
+
+	def get_font_face(self, ttf_file):
+		if(ttf_file in self.font_faces):
+			return self.font_faces[ttf_file]
+		self.font_faces[ttf_file] = create_cairo_font_face_for_file(ttf_file, 0)
+		return self.font_faces[ttf_file]
 
 	def add_label_class(self, layer_name, label_class):
 		layer_classes = self.label_classes.setdefault(layer_name, [])
@@ -274,7 +281,7 @@ class LabelRenderer(tiletree.Renderer):
 		#if(label_class.weight == "bold"):
 			#weight = cairo.FONT_WEIGHT_BOLD
 		#font_face = context.select_font_face(label_class.font, cairo.FONT_SLANT_NORMAL, )
-		font_face = create_cairo_font_face_for_file(label_class.font, 0)
+		font_face = self.get_font_face(label_class.font)
 		context.set_font_face(font_face)
 		context.set_font_size(label_class.font_size)
 		width, height = self.get_line_size(context, label_text)
