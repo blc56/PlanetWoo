@@ -118,7 +118,7 @@ class MapServerRenderer(Renderer):
 				if(check_full):
 					result = layer.getResult(0)
 					shape = layer.getShape(result)
-					bbox_shape = self.mapfile.extent.toPolygon()
+					bbox_shape = rect.toPolygon()
 					if(shape.contains(bbox_shape)):
 						node.is_full=True
 						node.is_leaf=True
