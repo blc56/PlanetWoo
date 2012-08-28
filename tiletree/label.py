@@ -493,7 +493,9 @@ class LabelRenderer(tiletree.Renderer):
 		pos_results = self.fast_position_poly_label(shape, node,
 				ghost_x, ghost_y, x_scale, y_scale, min_label_x, max_label_x,
 				label_geo_w, label_geo_h)
-		if(not pos_results):
+		#if the shape's area is less than 1/10 of a tile then don't bother 
+		#trying to label it
+		if(not pos_results and (shape.getArea() < (self.img_w * x_scale**2 * .1)) ):
 			pos_results = self.slow_position_poly_label(shape, node,
 					ghost_x, ghost_y, x_scale, y_scale, min_label_x, max_label_x,
 					label_geo_w, label_geo_h)

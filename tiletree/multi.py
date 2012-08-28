@@ -107,6 +107,9 @@ class MultiRenderer:
 		img_ids = []
 		img_bytes = []
 
+		if(node.geom == None):
+			node.geom = MultiGeom(len(self.renderers))
+
 		r_iter = -1
 		for renderer in self.renderers:
 			r_iter += 1
