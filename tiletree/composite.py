@@ -39,13 +39,13 @@ class TileCompositor:
 		self.extent = extent
 		self.layer_order = layer_order
 
-	def fetch(self, zoom_level, x, y, layers):
+	def fetch(self, zoom_level, x, y, layers, do_palette=True):
 		tile_generator = ( self.render_infos[l].storage_manager.fetch(zoom_level, x, y)
 				for l in layers )
-		return self.fetch_helper(tile_generator)
+		return self.fetch_helper(tile_generator, do_palette)
 
 
-	def dynamic_fetch(self, zoom_level, x, y, layers):
+	def dynamic_fetch(self, zoom_level, x, y, layers, do_palette=True):
 		#use a list to preserve side effects
 		label_geoms = [None]
 		#we call fetch_render() for _every_ layer in self.render_infos
@@ -53,7 +53,7 @@ class TileCompositor:
 		#are preserved (think labels...)
 		tile_generator = (self.fetch_render(zoom_level, x, y, self.render_infos[l], self.extent, label_geoms, layers)
 			for l in self.layer_order)
-		return self.fetch_helper(tile_generator)
+		return self.fetch_helper(tile_generator, do_palette)
 
 	def fetch_render(self, zoom_level, x, y, render_info, extent, label_geoms, layers):
 		if((render_info.start_zoom != None and render_info.start_zoom > zoom_level) or
@@ -80,7 +80,7 @@ class TileCompositor:
 				return StringIO.StringIO(img_bytes.getvalue())
 			return None
 
-	def fetch_helper(self, tile_generator):
+	def fetch_helper(self, tile_generator, do_palette=True):
 		output_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 256, 256)
 		output_context = cairo.Context(output_surface)
 		for tile in tile_generator:
@@ -95,6 +95,7 @@ class TileCompositor:
 		output_bytes = StringIO.StringIO()
 		output_surface.write_to_png(output_bytes)
 
-		return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
-		#return StringIO.StringIO(output_bytes.getvalue())
+		if(do_palette):
+			return tiletree.palette_png_bytes(StringIO.StringIO(output_bytes.getvalue()))
+		return StringIO.StringIO(output_bytes.getvalue())
 

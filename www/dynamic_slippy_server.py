@@ -33,16 +33,17 @@ import tiletree.memcached
 from scripts.render_to_csv import load_cutter, load_renderer
 
 class DynamicTileFetcher(tornado.web.RequestHandler):
-	def initialize(self, storage_manager, layers):
+	def initialize(self, storage_manager, layers, do_palette):
 		self.storage_manager = storage_manager
 		self.layers = layers
+		self.do_palette = do_palette
 
 	def get(self, zoom_level, x, y):
 		zoom_level = int(zoom_level)
 		x = int(x)
 		y = int(y)
 
-		img_file = self.storage_manager.dynamic_fetch(zoom_level, x, y, self.layers)
+		img_file = self.storage_manager.dynamic_fetch(zoom_level, x, y, self.layers, self.do_palette)
 		self.set_header('Content-Type', 'image/png')
 		self.write(img_file.read())
 
@@ -104,11 +105,13 @@ def main():
 
 	request_handlers = []
 	for group_name in layer_groups:
-		layers = layer_groups[group_name]
+		layers = layer_groups[group_name]['layer_order']
+		do_palette = layer_groups[group_name].get('do_palette', True)
+
 		url_prefix = args.url_prefix + group_name
 		request_handlers .append(
 			(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % url_prefix, DynamicTileFetcher,
-				{'storage_manager':compositor, 'layers':layers}),
+				{'storage_manager':compositor, 'layers':layers, 'do_palette':do_palette}),
 		)
 
 	app = tornado.web.Application(request_handlers)

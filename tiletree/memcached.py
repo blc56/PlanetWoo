@@ -31,17 +31,17 @@ class MCDStorageManager:
 		#not super efficient, but we'll see how it goes
 		return ''.join([str(int(l in layers) ) for l in self.layer_order])
 
-	def dynamic_fetch(self, zoom_level, x, y, layers):
-		return self.fetch_helper(zoom_level, x, y, layers, fetch_func=self.storage_manager.dynamic_fetch)
+	def dynamic_fetch(self, zoom_level, x, y, layers, do_palette=True):
+		return self.fetch_helper(zoom_level, x, y, layers, self.storage_manager.dynamic_fetch, do_palette)
 
-	def fetch(self, zoom_level, x, y, layers):
-		return self.fetch_helper(zoom_level, x, y, layers, fetch_func=self.storage_manager.fetch)
+	def fetch(self, zoom_level, x, y, layers, do_palette=True):
+		return self.fetch_helper(zoom_level, x, y, layers, self.storage_manager.fetch, do_palette)
 
-	def fetch_helper(self, zoom_level, x, y, layers, fetch_func):
+	def fetch_helper(self, zoom_level, x, y, layers, fetch_func, do_palette=True):
 		cache_id = self.compute_layer_key(layers) + str(tiletree.build_node_id(zoom_level, x, y))
 		png_bytes = self.cache.get(cache_id)	
 		if(png_bytes == None):
-			png_byte_stream = fetch_func(zoom_level, x, y, layers)
+			png_byte_stream = fetch_func(zoom_level, x, y, layers, do_palette)
 			self.cache.set(cache_id, png_byte_stream.getvalue())
 			return png_byte_stream
 
