@@ -76,7 +76,7 @@ def load_config(config_path, conn_str, force_create, recreate_layers, memcache):
 		if(memcache != None):
 			compositor = tiletree.memcached.MCDStorageManager(compositor, memcache, config['layer_order'])
 
-	return (compositor, config['layer_order'])
+	return (compositor, config['layer_groups'])
 
 def main():
 	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")
@@ -100,12 +100,18 @@ def main():
 	if(args.recreate_layers != None):
 		recreate_layers = args.recreate_layers
 
-	compositor, layers = load_config(args.config_file, args.conn_str, args.force_create, recreate_layers, args.memcache)
+	compositor, layer_groups = load_config(args.config_file, args.conn_str, args.force_create, recreate_layers, args.memcache)
 
-	app = tornado.web.Application([
-		(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % args.url_prefix, DynamicTileFetcher,
-			{'storage_manager':compositor, 'layers':layers}),
-	])
+	request_handlers = []
+	for group_name in layer_groups:
+		layers = layer_groups[group_name]
+		url_prefix = args.url_prefix + group_name
+		request_handlers .append(
+			(r"%s([0-9]{1,2})/([0-9]{1,6})/([0-9]{1,6}).png" % url_prefix, DynamicTileFetcher,
+				{'storage_manager':compositor, 'layers':layers}),
+		)
+
+	app = tornado.web.Application(request_handlers)
 
 	app.listen(port, address=args.bind_address)
 	tornado.ioloop.IOLoop.instance().start()
