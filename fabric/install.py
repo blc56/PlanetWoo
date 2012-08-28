@@ -131,7 +131,11 @@ def install_postgres(data_path='/mnt/planetwoo/pgdata/'):
 	sudo('rm -rf %s || :' % data_path)
 	sudo('mkdir -p %s' % data_path)
 	sudo('chown -R %(user)s:%(user)s %(data_path)s ' % {'user':'postgres', 'data_path':data_path})
-	put('resources/postgresql.conf', '/tmp/postgresql.conf')
+
+	postgresql_conf = open('resources/postgresql.conf', 'r').read()
+	postgresql_conf = postgresql_conf % {'data_path':data_path}
+
+	put(StringIO.StringIO(postgresql_conf), '/tmp/postgresql.conf')
 	put('resources/pg_hba.conf', '/tmp/pg_hba.conf')
 	sudo('mv /tmp/postgresql.conf /etc/postgresql/9.1/main/')
 	sudo('su - postgres -c "/usr/lib/postgresql/9.1/bin/initdb -D %s"' % data_path)
