@@ -201,9 +201,15 @@ INSERT INTO %s VALUES(%%(node_id)s, %%(zoom_level)s, %%(tile_x)s,
 
 
 	def store(self, node, img_bytes):
-		self.store_image(node, img_bytes)
-		self.store_node(node)
-		self.conn.commit()
+		try:
+			self.store_image(node, img_bytes)
+			self.store_node(node)
+			self.flush()
+		except:
+			self.conn.rollback()
+
+	def rollback(self):
+		self.conn.rollback()
 
 	def flush(self):
 		self.conn.commit()

@@ -200,30 +200,35 @@ def get_results(config_path, download_path="./"):
 
 @task
 @serial
-def load_results(config_path, connect_str, node_table, image_table, download_dir,
+def batch_load_results(config_path, connect_str, download_dir,
 		address_override=None, prefix_override=None):
 	#TODO: FIXME XXX: convert this function for new config file format
 	global_config=json.loads(open(config_path, 'r').read())
 	render_node_configs = create_machine_jobs(global_config)
 
-	#is_first_load = True
-	#storage = tiletree.postgres.PostgresStorageManager(connect_str, node_table, image_table)
-	#for render_node in render_node_configs.values():
-		#if(is_first_load):
-			#print 'Create tables.'
-			#is_first_load = False
-			#storage.recreate_tables()
-		#for x in range(0, len(render_node['jobs'])):
-			#prefix = prefix_override
-			#if(prefix_override == None):
-				#prefix = os.path.basename(render_node['dist_render']['output_prefix'])
-			#address = address_override
-			#if(address_override == None):
-				#address = render_node['address']
-			#tree_path = os.path.join(download_dir, address) + '/' + prefix + 'tree_%d.csv' % x
-			#image_path = os.path.join(download_dir, address) + '/' + prefix + 'images_%d.csv' % x
-			#print tree_path, image_path
-			#storage.copy(open(tree_path, 'r'), open(image_path, 'r'))
+	for layer_name in global_config['layer_order']:
+		is_first_load = True
+		layer = global_config['layers'][layer_name]
+		node_table = layer['tree_table']
+		image_table = layer['image_table']
+		storage = tiletree.postgres.PostgresStorageManager(connect_str, node_table, image_table)
+		for render_node in render_node_configs.values():
+			if(is_first_load):
+				print 'Create tables.', node_table, image_table
+				is_first_load = False
+				storage.recreate_tables()
+			for x in range(0, len(render_node['jobs'])):
+				prefix = prefix_override
+				if(prefix_override == None):
+					prefix = os.path.basename(layer['output_prefix'])
+				address = address_override
+				if(address_override == None):
+					address = render_node['address']
+				tree_path = os.path.join(download_dir, address) + '/' + prefix + 'tree_%d.csv' % x
+				image_path = os.path.join(download_dir, address) + '/' + prefix + 'images_%d.csv' % x
+				print tree_path, image_path
+				storage.copy(open(tree_path, 'r'), open(image_path, 'r'))
+				storage.flush()
 
 @task
 @serial
