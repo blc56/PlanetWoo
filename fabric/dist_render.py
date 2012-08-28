@@ -47,6 +47,7 @@ def create_machine_jobs(global_config):
 	dist_render_config = global_config['dist_render']
 
 	#override parameteres with render_extent if necessary
+	render_extent = global_config['map_extent']
 	if('render_extent' in dist_render_config):
 		render_extent = dist_render_config['render_extent']
 		tile_coords = tiletree.extent_to_tile_coord(render_extent, global_config['map_extent'])
@@ -54,6 +55,9 @@ def create_machine_jobs(global_config):
 		dist_render_config['start_zoom'] = tile_coords[0]
 		dist_render_config['start_tile_x'] = tile_coords[1]
 		dist_render_config['start_tile_y'] = tile_coords[2]
+		#get the extent of the root node
+		render_extent = tiletree.tile_coord_to_bbox(tile_coords[0], tile_coords[1], tile_coords[2],
+				global_config['map_extent'])
 
 
 	total_num_threads = sum(x['num_threads'] for x in dist_render_config['render_nodes'])
@@ -64,7 +68,7 @@ def create_machine_jobs(global_config):
 
 	jobs = split_bbox(min_num_jobs, dist_render_config['start_zoom'],
 			dist_render_config['start_tile_x'], dist_render_config['start_tile_y'],
-			dist_render_config['stop_zoom'], *global_config['map_extent'])
+			dist_render_config['stop_zoom'], *render_extent)
 
 	fill_to_zoom_level = jobs[0].zoom_level - 1
 
