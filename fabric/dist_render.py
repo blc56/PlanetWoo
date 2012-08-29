@@ -98,7 +98,7 @@ def create_machine_jobs(global_config):
 	#add in any left over bits at the top of the tree
 	if(fill_to_zoom_level >= dist_render_config['start_zoom']):
 		render_node_configs.values()[0]['jobs'].append({
-			'extent': global_config['map_extent'],
+			'extent': render_extent,
 			'start_zoom': dist_render_config['start_zoom'],
 			'stop_zoom': fill_to_zoom_level,
 			'tile_x': dist_render_config['start_tile_x'],
