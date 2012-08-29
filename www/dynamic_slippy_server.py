@@ -30,7 +30,7 @@ import tiletree.postgres
 import tiletree.composite
 import tiletree.label
 import tiletree.memcached
-from scripts.render_to_csv import load_cutter, load_renderer
+from tiletree import load_cutter, load_renderer
 
 class DynamicTileFetcher(tornado.web.RequestHandler):
 	def initialize(self, storage_manager, layers, do_palette):
