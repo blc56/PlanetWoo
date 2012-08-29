@@ -263,10 +263,11 @@ class QuadTreeGenNode:
 		if(self.geom):
 			self.geom = shapely.wkt.loads(self.geom)
 
-	def to_generator_job(self, storage_manager, renderer, cutter, stop_level, log_file=sys.stdout, start_checks_zoom=None, check_full=True):
+	def to_generator_job(self, count, config, stop_level, log_file=sys.stdout,
+			start_checks_zoom=None, check_full=True):
 		return GeneratorJob(self.min_x, self.min_y, self.max_x, self.max_y,
 			self.zoom_level, self.tile_x, self.tile_y, stop_level,
-			storage_manager, renderer, cutter, log_file, start_checks_zoom, check_full)
+			config, count, log_file, start_checks_zoom, check_full)
 
 def quad_tree_gen_node_from_json(json_str):
 	node = QuadTreeGenNode()
@@ -480,10 +481,103 @@ class QuadTreeGenStats:
 			return self.total_nodes_rendered / time
 		return float('nan')
 
+def load_cutter(config):
+	cutter_type = config.get('cutter_type', 'multi')
+	if(cutter_type == 'shapefileram'):
+		return load_shapefile_ram_cutter(config['shapefile_path'], config['shapefile_layer'])
+	if(cutter_type == 'shapefile'):
+		return load_shapefile_cutter(config['shapefile_path'], config['shapefile_layer'])
+	elif(cutter_type == 'maptree'):
+		return load_maptree_cutter(config['shapefile_path'], config['shapefile_layer'])
+	elif(cutter_type == 'postgres'):
+		return load_postgres_cutter(config['connect_string'], config['table_name'])
+	elif(cutter_type == 'multi'):
+		cutters = []
+		for layer_name in config['layer_order']:
+			layer_config = config['layers'][layer_name]
+			cutters.append(load_cutter(layer_config))
+		return multi.MultiCutter(cutters)
+	else:
+		return NullGeomCutter()
+
+def load_label_classes(layer_config, label_renderer):
+	for layer_name, label_classes in layer_config['label_classes'].items():
+		for label_class_dict in label_classes:
+			label_class = label.LabelClass()
+			label_class.from_dict(label_class_dict)
+			label_renderer.add_label_class(layer_name, label_class)
+
+def load_storage_manager(config, job_id, run_prefix=''):
+	storage_type = config.get('dist_render_storage_type', 'multi')
+	if(storage_type == 'csv'):
+		prefix = config['output_prefix'] + run_prefix
+		tree_file_path =  prefix + 'tree_%d.csv' % job_id
+		image_file_path = prefix + 'images_%d.csv' % job_id
+		return csvstorage.CSVStorageManager(open(tree_file_path, 'w'), open(image_file_path, 'w'))
+	elif(storage_type == 'multi'):
+		storage_managers = []
+		for layer_name in config['layer_order']:
+			layer_config = config['layers'][layer_name]
+			storage_managers.append(load_storage_manager(layer_config, job_id, run_prefix))
+		return multi.MultiStorageManager(storage_managers)
+
+def load_renderer(config):
+	renderer_type = config.get('renderer_type', 'multi')
+
+	if(renderer_type == 'mapserver'):
+		mapfile_path = config['mapfile_path']
+		if(isinstance(mapfile_path, list)):
+			mapfile_path = mapfile_path[0]
+		return mapserver.MapServerRenderer(open(mapfile_path,'r').read(),
+			config['mapserver_layers'], img_w=256, img_h=256, img_buffer=config.get('img_buffer', 0),
+			min_zoom=config.get('min_zoom', 0), max_zoom=config.get('max_zoom', 20),
+			cache_fulls=config.get('cache_fulls', True), srs=config.get('srs', 'EPSG:3857'),
+			trust_cutter=config.get('trust_cutter', False), tile_buffer=config.get('tile_buffer', 0),
+			info_cache_name=config.get('tile_info_cache', None),
+			skip_info=config.get('skip_info',False))
+
+	elif(renderer_type == 'label'):
+		mapfile_path = config['mapfile_path']
+		if(isinstance(mapfile_path, list)):
+			mapfile_path = mapfile_path[0]
+		renderer = label.LabelRenderer(open(mapfile_path,'r').read(),
+			config.get('label_col_index', None), config['mapserver_layers'],
+			config.get('min_zoom', 0), config.get('max_zoom', 100),
+			point_labels=config.get('point_labels', False))
+		load_label_classes(config, renderer)
+		return renderer
+
+	elif(renderer_type == 'multi'):
+		renderers = []
+		for layer_name in config['layer_order']:
+			layer_config = config['layers'][layer_name]
+			renderers.append(load_renderer(layer_config))
+		return multi.MultiRenderer(renderers)
+
+	return None
+
+def load_postgres_cutter(connect_str, table_name):
+	return postgres.PostgresCutter(connect_str, table_name)
+
+def load_shapefile_cutter(shapefile_path, shapefile_layer):
+	if(isinstance(shapefile_path, list)):
+		shapefile_path = shapefile_path[0]
+	return  shapefile.ShapefileCutter(shapefile_path, str(shapefile_layer))
+
+def load_shapefile_ram_cutter(shapefile_path, shapefile_layer):
+	if(isinstance(shapefile_path, list)):
+		shapefile_path = shapefile_path[0]
+	return  shapefile.ShapefileRAMCutter(shapefile_path, str(shapefile_layer))
+
+def load_maptree_cutter(shapefile_path, shapefile_layer):
+	shapefile_root = os.path.basename(shapefile_path)
+	qix_path = shapefile_root + '.qix'
+	return shapefile.MaptreeCutter(shapefile_path, str(shapefile_layer), qix_path)
+
 class GeneratorJob:
 	def __init__(self, min_x, min_y, max_x, max_y, start_level,
-			start_tile_x, start_tile_y, stop_level, storage_manager,
-			renderer, cutter, log_file=sys.stdout, start_checks_zoom=None,
+			start_tile_x, start_tile_y, stop_level, config, count=0,
+			log_file=sys.stdout, start_checks_zoom=None,
 			check_full=True):
 		self.min_x = min_x
 		self.min_y = min_y
@@ -493,12 +587,20 @@ class GeneratorJob:
 		self.start_tile_x = start_tile_x
 		self.start_tile_y = start_tile_y
 		self.stop_level = stop_level
-		self.storage_manager = storage_manager
-		self.renderer=renderer
-		self.cutter = cutter
+		self.config = config
+		self.count = count
 		self.log_file = log_file
 		self.start_checks_zoom = start_checks_zoom
 		self.check_full = check_full
+
+	def load_cutter(self):
+		return load_cutter(self.config)
+
+	def load_renderer(self):
+		return load_renderer(self.config)
+
+	def load_storage_manager(self):
+		return load_storage_manager(self.config, self.count, self.config.get('run_prefix', ''))
 
 def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom=None, check_full=True):
 	if(start_checks_zoom == None or node.zoom_level >= start_checks_zoom):
@@ -525,23 +627,31 @@ def generate_node(node, cutter, storage_manager, renderer, stop_level, stats, st
 		return node.split(cutter)
 	return node.split()
 
-def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout, start_checks_zoom=0, check_full=True):
-	stats = QuadTreeGenStats(start_level, stop_level)
+#def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, start_level=0, start_tile_x=0, start_tile_y=0, stop_level=17, log_file=sys.stdout, start_checks_zoom=0, check_full=True):
+
+def generate(job):
+	storage_manager = job.load_storage_manager()
+	renderer = job.load_renderer()
+	cutter = job.load_cutter()
+	log_file = job.log_file
+
+	stats = QuadTreeGenStats(job.start_level, job.stop_level)
 	stats.reset_timer()
 
 	#create the initial QuadTreeGenNode
-	root_node = QuadTreeGenNode(None,min_x,min_y,max_x,max_y,
-		zoom_level=start_level, tile_x=start_tile_x, tile_y=start_tile_y)
+	root_node = QuadTreeGenNode(None,job.min_x,job.min_y,job.max_x,job.max_y,
+		zoom_level=job.start_level, tile_x=job.start_tile_x, tile_y=job.start_tile_y)
 	root_geom = None
-	if(start_checks_zoom == None or root_node.zoom_level >= start_checks_zoom):
-		root_node.geom = cutter.cut(min_x, min_y, max_x, max_y)
+	if(job.start_checks_zoom == None or root_node.zoom_level >= job.start_checks_zoom):
+		root_node.geom = cutter.cut(job.min_x, job.min_y, job.max_x, job.max_y)
 
 	nodes_to_render = [root_node]
 	last_stat_output = time.time()
 
 	while(len(nodes_to_render) > 0):
 		this_node = nodes_to_render.pop()
-		children = generate_node(this_node, cutter, storage_manager, renderer, stop_level, stats, start_checks_zoom, check_full)
+		children = generate_node(this_node, cutter, storage_manager, renderer, job.stop_level, stats,
+				job.start_checks_zoom, job.check_full)
 		nodes_to_render.extend(children)
 
 		#output stats every so often
@@ -559,21 +669,10 @@ def generate(min_x, min_y, max_x, max_y, storage_manager, renderer, cutter, star
 	log_file.flush()
 
 def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
-	#build the arguments that are sent to worker processes
-	job_args = []
-	for job in generator_jobs:
-		job_args.append((job.min_x, job.min_y, job.max_x, job.max_y,
-			job.storage_manager, job.renderer, job.cutter,
-			job.start_level, job.start_tile_x,
-			job.start_tile_y, job.stop_level, job.log_file,
-			job.start_checks_zoom,
-			job.check_full))
-		job.storage_manager.flush()
-
 	#line up
 	threads = []
 	for x in range(num_threads):
-		thread = multiprocessing.Process(target=generate, args=job_args.pop())
+		thread = multiprocessing.Process(target=generate, args=[generator_jobs.pop()])
 		threads.append(thread)
 
 	#off to the races
@@ -581,11 +680,11 @@ def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 		thread.start()
 
 	#check every 10 seconds to see if a thread has finished 
-	while(len(job_args) > 0):
+	while(len(generator_jobs) > 0):
 		for x in range(len(threads)):
 			if(not threads[x].is_alive()):
 				del threads[x]
-				new_thread = multiprocessing.Process(target=generate, args=job_args.pop())
+				new_thread = multiprocessing.Process(target=generate, args=[generator_jobs.pop()])
 				threads.append(new_thread)
 				new_thread.start()
 				break
