@@ -193,6 +193,7 @@ def install_deps(prefix="/opt/planetwoo/"):
 	sudo('apt-get -y install git')
 	sudo('apt-get -y install screen dtach')
 	sudo('apt-get -y install libmemcached-dev')
+	sudo('apt-get -y install pngquant')
 	sudo('pip install shapely')
 	sudo('pip install -U PIL')
 	sudo('pip install psycopg2')
