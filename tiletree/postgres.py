@@ -156,27 +156,27 @@ floor(node.tile_y / (2^(node.zoom_level - %%(z)s)))::int = %%(y)s
 		#print '===================='
 		#print zoom_level, x, y
 
+		node_ids = []
 		for z in range(zoom_level, -1, -1):
 			#print z, x, y
-			node_id = tiletree.build_node_id(z, x, y)
-
-			curs.execute(\
-"""
-SELECT images.img_bytes, (nodes.is_leaf and (nodes.is_full or nodes.is_blank))
-FROM %s nodes, %s images
-WHERE nodes.node_id = %%s AND images.image_id = nodes.image_id
-""" % (self.node_table, self.image_table,), (node_id,) )
-			result = curs.fetchone()
-			if(result):
-				#if we end up pulling an image from a node at a higher
-				#zoom level, it should be a leaf node
-				if(z != zoom_level and not result[1]):
-					raise tiletree.TileNotFoundException()
-				return StringIO.StringIO(result[0])
+			node_ids.append(tiletree.build_node_id(z, x, y))
 
 			x = int(math.floor(x/2.0))
 			y = int(math.floor(y/2.0))
 
+		id_clause = ' OR '.join('nodes.node_id = %s' for id in node_ids)
+		curs.execute(\
+"""
+SELECT images.img_bytes
+FROM %(node_table)s nodes, %(image_table)s images
+WHERE images.image_id = nodes.image_id AND (%(id_clause)s) AND
+	(nodes.zoom_level = %%s OR (nodes.is_leaf and (nodes.is_full or nodes.is_blank)))
+ORDER BY nodes.zoom_level DESC
+""" % {'node_table':self.node_table, 'image_table':self.image_table,
+	'id_clause':id_clause,}, node_ids + [zoom_level] )
+		result = curs.fetchone()
+		if(result):
+			return StringIO.StringIO(result[0])
 		raise tiletree.TileNotFoundException()
 
 	def store_image(self, node, img_bytes):
