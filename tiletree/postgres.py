@@ -16,7 +16,7 @@
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
 ##\file postgres.py storage classes for the tiletree module. 
-import tiletree
+import planetwoo.tiletree
 from psycopg2 import *
 import os.path
 import math

@@ -19,9 +19,8 @@
 from fabric.api import serial, parallel, task, local, settings, abort, run, cd, env, get, put, execute, sudo, hide
 import json
 import sys
-sys.path.append('../')
-import tiletree
-import tiletree.postgres
+import planetwoo.tiletree as tiletree
+import planetwoo.tiletree.postgres as pw_postgres
 import os.path
 import math
 import uuid
@@ -215,7 +214,7 @@ def batch_load_results(config_path, connect_str, download_dir,
 		layer = global_config['layers'][layer_name]
 		node_table = layer['tree_table']
 		image_table = layer['image_table']
-		storage = tiletree.postgres.PostgresStorageManager(connect_str, node_table, image_table)
+		storage = pw_postgres.PostgresStorageManager(connect_str, node_table, image_table)
 		for render_node in render_node_configs.values():
 			if(is_first_load):
 				print 'Create tables.', node_table, image_table

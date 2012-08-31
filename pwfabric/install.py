@@ -151,7 +151,7 @@ def install_user_env(prefix="/opt/planetwoo/"):
 	env_sh = \
 """
 echo '
-PYTHONPATH="%(prefix)s/lib/python2.7/site-packages/:%(prefix)s/PlanetWoo/:${PYTHONPATH}"
+PYTHONPATH="%(prefix)s/lib/python2.7/site-packages/:%(prefix)s:${PYTHONPATH}"
 LD_LIBRARY_PATH="%(prefix)s/lib/:${LD_LIBRARY_PATH}"
 PATH="%(prefix)s/bin/:${PATH}"
 export PYTHONPATH
@@ -242,5 +242,6 @@ def install_planetwoo(prefix="/opt/planetwoo"):
 	sudo('mkdir -p %s' % prefix)
 	with cd('%s' % prefix):
 		sudo('git clone https://github.com/blc56/PlanetWoo.git')
+		sudo('ln -s PlanetWoo planetwoo')
 
 
