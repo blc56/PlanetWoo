@@ -17,7 +17,7 @@
 
 ##\file composite.py 
 import StringIO
-import tiletree
+import planetwoo.tiletree as tiletree
 import cairo
 #import Image
 
