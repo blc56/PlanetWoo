@@ -16,7 +16,7 @@
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
 ##\file shapfile.py Shapefile classes for the tiletree module. 
-import tiletree
+import planetwoo.tiletree as tiletree
 import shapely
 import shapely.wkt
 import shapely.geometry

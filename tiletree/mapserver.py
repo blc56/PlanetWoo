@@ -16,13 +16,13 @@
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
 ##\file mapserver.py render classes for the tiletree module. 
-from tiletree import *
+from planetwoo.tiletree import *
 import shapely
 import shapely.wkt
 import shapely.geometry
 import time
 import mapscript
-import tiletree
+import planetwoo.tiletree as tiletree
 import cairo
 
 class MapServerRenderer(Renderer):

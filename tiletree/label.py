@@ -25,7 +25,7 @@ import shapely
 import json
 import copy
 
-import tiletree
+import planetwoo.tiletree as tiletree
 
 ALMOST_ZERO = float(1e-10)
 

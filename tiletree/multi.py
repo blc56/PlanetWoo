@@ -18,7 +18,7 @@
 ##\file __init__.py Main classes for the tiletree.multi_render module. 
 import copy
 
-import tiletree
+import planetwoo.tiletree as tiletree
 
 class TileInfoCache:
 	def __init__(self, name):
