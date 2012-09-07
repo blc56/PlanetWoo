@@ -17,9 +17,8 @@
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-sys.path.append('../')
-import tiletree
-import tiletree.postgres
+import planetwoo.tiletree as tiletree
+import planetwoo.tiletree.postgres as postgres
 import argparse
 import json
 
@@ -41,7 +40,7 @@ def main():
 			help='Map extent.', type=float)
 	args = parser.parse_args()
 	
-	storage_manager = tiletree.postgres.PostgresStorageManager(args.conn_str, args.tree_table, args.images_table)
+	storage_manager = postgres.PostgresStorageManager(args.conn_str, args.tree_table, args.images_table)
 
 	if(args.create or not storage_manager.do_tables_exist()):
 		print "Creating tables"
