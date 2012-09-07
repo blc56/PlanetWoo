@@ -17,14 +17,13 @@
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
 import sys
-sys.path.append('../')
-import tiletree
-import tiletree.csvstorage
-import tiletree.shapefile
-import tiletree.mapserver
-import tiletree.postgres
-import tiletree.label
-import tiletree.multi
+import planetwoo.tiletree as tiletree
+import planetwoo.tiletree.csvstorage
+import planetwoo.tiletree.shapefile
+import planetwoo.tiletree.mapserver
+import planetwoo.tiletree.postgres
+import planetwoo.tiletree.label
+import planetwoo.tiletree.multi
 import os.path
 import argparse
 import json

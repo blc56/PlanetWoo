@@ -16,7 +16,7 @@
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
 ##\file csvstorage.py storage classes for the tiletree module. 
-import tiletree
+import planetwoo.tiletree as tiletree
 import os
 import shapely.wkt
 
