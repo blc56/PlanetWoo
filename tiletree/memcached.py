@@ -18,7 +18,7 @@
 ##\file memcached.py 
 import StringIO
 
-import tiletree
+import planetwoo.tiletree as tiletree
 import memcache
 
 class MCDStorageManager:
