@@ -21,23 +21,23 @@
 <script type="text/javascript">
 var map;
 
-function init() {
+function init_map() {
+	if(map != null) {
+		map.destroy();
+	}
     map = new OpenLayers.Map({
         div: "map",
-        projection: new OpenLayers.Projection("EPSG:900913")
+		projection: new OpenLayers.Projection("EPSG:900913"),
+		allOverlays:true,
     });
     
-    var osm = new OpenLayers.Layer.OSM();
-	var woo = new OpenLayers.Layer.OSM("PlanetWoo", "http://localhost:8080/slippy_map/base/${z}/${x}/${y}.png",{
-		tileOptions:{crossOriginKeyword:null}
+	var osm = new OpenLayers.Layer.OSM({visibility:false});
+	var pw_server = document.getElementById("server_addr").value; 
+	var pw = new OpenLayers.Layer.OSM("PlanetWoo", pw_server,{
+		tileOptions:{crossOriginKeyword:null},
+		visibility:true
 	});
-	var test_node = new OpenLayers.Layer.OSM("PlanetWoo Test Node", "http://ec2-23-21-31-235.compute-1.amazonaws.com:8080/slippy_map/${z}/${x}/${y}.png",{
-		tileOptions:{crossOriginKeyword:null}
-	});
-    //var gmap = new OpenLayers.Layer.Google("Google Streets");
-    
-    //map.addLayers([osm, gmap]);
-    map.addLayers([woo, test_node, osm]);
+    map.addLayers([osm, pw]);
 
     map.addControl(new OpenLayers.Control.LayerSwitcher());
 
@@ -52,7 +52,13 @@ function init() {
 init();
 </script>
 </head>
-<body onload="init()">
+<body>
+<div id="settings">
+	<form action="javascript:init_map();">
+		Slippy Server: <input type="text" style="width:100%;" id="server_addr", value="http://example.com/${z}/${x}/${y}.png">
+		<input type="submit" value="Set">
+	</form>
+</div>
 <div id="map" style="background:black"/>
 <body>
 </html>
