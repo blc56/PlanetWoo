@@ -20,17 +20,7 @@ import sys
 import tornado.ioloop
 import tornado.web
 import argparse
-import json
-import psycopg2
-
-sys.path.append('../')
-import tiletree
-import tiletree.mapserver
-import tiletree.postgres
-import tiletree.composite
-import tiletree.label
-import tiletree.memcached
-from tiletree import load_cutter, load_renderer
+from planetwoo.www import load_config
 
 class DynamicTileFetcher(tornado.web.RequestHandler):
 	def initialize(self, storage_manager, layers, do_palette):
@@ -47,37 +37,6 @@ class DynamicTileFetcher(tornado.web.RequestHandler):
 		self.set_header('Content-Type', 'image/png')
 		self.write(img_file.read())
 
-def load_config(config_path, conn_str, force_create, recreate_layers, memcache):
-	config = json.loads(open(config_path, 'r').read())
-	render_infos = {}
-
-	postgres_conn = psycopg2.connect(conn_str)
-
-	for layer_name in config['layer_order']:
-		layer = config['layers'][layer_name]
-		#apply the dynamic override settings
-		layer.update(layer.get('dynamic_override', {}))
-		cutter = load_cutter(layer)
-		renderer = load_renderer(layer)
-
-		#have all of the storage_managers use the same connection so we don't overwhelm postgres
-		storage_manager = tiletree.postgres.PostgresStorageManager(None, layer['tree_table'],
-			layer['image_table'], postgres_conn)
-		render_infos[layer_name] = tiletree.composite.RenderInfo(layer_name, storage_manager, renderer, cutter,
-			layer.get('check_full', True), layer.get('start_zoom', None), layer.get('stop_zoom', None))
-
-		if(layer.get('renderer_type', '') == 'label'):
-			renderer.storage_manager = storage_manager
-
-		if(force_create or layer_name in recreate_layers or not storage_manager.do_tables_exist()):
-			print 'Recreating', storage_manager.node_table, storage_manager.image_table
-			storage_manager.recreate_tables()
-
-		compositor = tiletree.composite.TileCompositor(render_infos, config['layer_order'], config['map_extent'])
-		if(memcache != None):
-			compositor = tiletree.memcached.MCDStorageManager(compositor, memcache, config['layer_order'])
-
-	return (compositor, config['layer_groups'])
 
 def main():
 	parser = argparse.ArgumentParser(description="planetwoo Slippy Map Server")
