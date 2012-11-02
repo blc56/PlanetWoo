@@ -25,6 +25,10 @@ def do_batch(config):
 	for batch in config['batch_render']:
 		new_config = copy.copy(config)
 		new_config.update(batch)
+		#allow for a 'stop_zoom' variable in batches in case
+		# we want batches with different stop zooms
+		if('stop_zoom' in batch):
+			new_config['stop_zoom'] = batch['stop_zoom']
 		print "Now running:", batch
 		render_to_csv(new_config)
 

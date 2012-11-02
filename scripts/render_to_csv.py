@@ -42,10 +42,20 @@ def render_to_csv(config, ):
 		log_file = open(prefix + log_prefix + ('%d.log' % count), 'w')
 		start_checks_zoom = config.get('start_checks_zoom', None)
 		check_full = config.get('check_full', True)
+
+		#this can happen when an individual batch uses "stop_zoom" 
+		if(config['stop_zoom'] < job['stop_zoom']):
+			job['stop_zoom'] = config['stop_zoom']
+
+		#this can happen when an individual batch uses "stop_zoom" 
+		if(job['start_zoom'] > job['stop_zoom']):
+			print 'Skipping job due to stop zoom'
+			continue
 				
 		start_node = tiletree.QuadTreeGenNode(min_x=job['extent'][0], min_y=job['extent'][1],
 			max_x=job['extent'][2], max_y=job['extent'][3], zoom_level=job['start_zoom'],
 			tile_x=job['tile_x'], tile_y=job['tile_y'])
+		print start_node
 		generate_jobs.append(start_node.to_generator_job(
 			count,
 			config,

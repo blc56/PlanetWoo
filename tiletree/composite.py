@@ -22,15 +22,15 @@ import cairo
 #import Image
 
 class RenderInfo:
-	def __init__(self, name, storage_manager, renderer, cutter, check_full, start_zoom=None,
-			stop_zoom=None, label_col_index=None):
+	def __init__(self, name, storage_manager, renderer, cutter, check_full, min_zoom=None,
+			max_zoom=None, label_col_index=None):
 		self.name = name
 		self.storage_manager = storage_manager
 		self.renderer = renderer
 		self.cutter = cutter
 		self.check_full = check_full
-		self.start_zoom = start_zoom
-		self.stop_zoom = stop_zoom
+		self.min_zoom = min_zoom
+		self.max_zoom = max_zoom
 		self.label_col_index = label_col_index
 
 class TileCompositor:
@@ -56,8 +56,8 @@ class TileCompositor:
 		return self.fetch_helper(tile_generator, do_palette)
 
 	def fetch_render(self, zoom_level, x, y, render_info, extent, label_geoms, layers):
-		if((render_info.start_zoom != None and render_info.start_zoom > zoom_level) or
-				(render_info.stop_zoom != None and render_info.stop_zoom < zoom_level) ):
+		if((render_info.min_zoom != None and render_info.min_zoom > zoom_level) or
+				(render_info.max_zoom != None and render_info.max_zoom < zoom_level) ):
 			return None
 		storage_manager = render_info.storage_manager
 		renderer = render_info.renderer

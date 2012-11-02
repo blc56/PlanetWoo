@@ -650,6 +650,7 @@ def generate(job):
 def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 	#line up
 	threads = []
+	num_threads = min(num_threads, len(generator_jobs))
 	for x in range(num_threads):
 		thread = multiprocessing.Process(target=generate, args=[generator_jobs.pop()])
 		threads.append(thread)

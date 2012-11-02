@@ -25,7 +25,7 @@ def load_config(config_path, conn_str, force_create, recreate_layers, memcache):
 		storage_manager = postgres.PostgresStorageManager(None, layer['tree_table'],
 			layer['image_table'], postgres_conn)
 		render_infos[layer_name] = composite.RenderInfo(layer_name, storage_manager, renderer, cutter,
-			layer.get('check_full', True), layer.get('start_zoom', None), layer.get('stop_zoom', None))
+			layer.get('check_full', True), layer.get('min_zoom', None), layer.get('max_zoom', None))
 
 		if(layer.get('renderer_type', '') == 'label'):
 			renderer.storage_manager = storage_manager
