@@ -15,7 +15,7 @@
 #You should have received a copy of the GNU General Public License
 #along with PlanetWoo.  If not, see <http://www.gnu.org/licenses/>.
 
-##\file __init__.py Main classes for the tiletree.label module. 
+##\file label.py Main classes for the tiletree.label module. 
 import StringIO
 import mapscript
 import cairo
@@ -113,10 +113,9 @@ class LabelClass:
 	def from_dict(self, in_dict):
 		self.__dict__.update(in_dict)
 
-class LabelRenderer(tiletree.Renderer):
+class BaseLabelRenderer(tiletree.Renderer):
 	def __init__(self, mapfile_string, label_col_index, mapserver_layers,
 			min_zoom=0, max_zoom=100, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
-			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=0,
 			info_cache_name=None):
 		tiletree.Renderer.__init__(self, img_w, img_h, info_cache_name)
 		self.mapfile = mapscript.fromstring(mapfile_string)
@@ -128,13 +127,6 @@ class LabelRenderer(tiletree.Renderer):
 		self.tile_buffer = tile_buffer
 		self.min_zoom = min_zoom
 		self.max_zoom = max_zoom
-		self.point_labels = point_labels
-		self.point_buffer = point_buffer
-		self.label_buffer = label_buffer
-		self.position_attempts = position_attempts
-		self.label_adjustment_max = (self.label_spacing / 2.0) - max(self.img_w, self.img_h)
-		if(self.label_adjustment_max < 0):
-			raise Exception("Bad parameters")
 		self.label_classes = {}
 		self.blank_img_bytes = None
 		self.font_faces = {}
@@ -148,6 +140,22 @@ class LabelRenderer(tiletree.Renderer):
 	def add_label_class(self, layer_name, label_class):
 		layer_classes = self.label_classes.setdefault(layer_name, [])
 		layer_classes.append(label_class)
+
+class LabelRenderer(BaseLabelRenderer):
+	def __init__(self, mapfile_string, label_col_index, mapserver_layers,
+			min_zoom=0, max_zoom=100, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
+			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=0,
+			info_cache_name=None):
+		BaseLabelRenderer.__init__(self, mapfile_string, label_col_index, mapserver_layers,
+			min_zoom=min_zoom, max_zoom=max_zoom, label_spacing=label_spacing, img_w=img_w, img_h=img_h,
+			tile_buffer=256, info_cache_name=info_cache_name)
+		self.point_labels = point_labels
+		self.point_buffer = point_buffer
+		self.label_buffer = label_buffer
+		self.position_attempts = position_attempts
+		self.label_adjustment_max = (self.label_spacing / 2.0) - max(self.img_w, self.img_h)
+		if(self.label_adjustment_max < 0):
+			raise Exception("Bad parameters")
 
 	def tile_info(self, node, check_full=True):
 		node.is_blank = False
