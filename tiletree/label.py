@@ -98,6 +98,11 @@ def bbox_check(label_bbox, tile_bbox):
 def calc_distance(x1, y1, x2, y2):
 	return math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
 
+def pro_rate_point(x1, y1, x2, y2, target_distance):
+	distance_factor = target_distance / calc_distance(x1, y1, x2, y2)
+	return (x1 + distance_factor*(x2 - x1), y1 + distance_factor*(y2 - y1))
+
+
 class LabelClass:
 	def __init__(self, font='arial', font_size=12, mapserver_query="(1==1)", font_color_fg=(0, 0, 0, 1),
 			font_color_bg=None, min_zoom=0, max_zoom=19, weight="normal", label_type="polygon"):
@@ -580,6 +585,8 @@ class LabelRenderer(BaseLabelRenderer):
 		y_scale = (node.max_y - node.min_y) / float(self.img_h)
 		label_geo_w = label_width * x_scale * .5
 		label_geo_h = label_height * y_scale * .5
+		#TODO: this will be weird if the extent isn't square
+		label_geo_spacing = self.label_spacing * x_scale
 
 		ret_results = []
 
@@ -594,17 +601,24 @@ class LabelRenderer(BaseLabelRenderer):
 			if(line.numpoints == 0):
 				continue
 
-			first_point = line.get(0)
-			last_x, last_y = tiletree.geo_coord_to_img(first_point.x, first_point.y,
+			last_point = line.get(0)
+			last_x, last_y = tiletree.geo_coord_to_img(last_point.x, last_point.y,
 					self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
-			for point_iter in range(1, line.numpoints):
+			point_iter = 1
+			while point_iter < line.numpoints:
 				point = line.get(point_iter)
 				this_x, this_y = tiletree.geo_coord_to_img(point.x, point.y,
 					self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
-				distance_since_last_label += calc_distance(this_x, this_y, last_x, last_y)
+				this_distance = calc_distance(this_x, this_y, last_x, last_y)
 
-				if(distance_since_last_label > self.label_spacing ):
-					distance_since_last_label = 0
+				if((distance_since_last_label + this_distance) > self.label_spacing ):
+					point = pro_rate_point(last_point.x, last_point.y, point.x, point.y,
+							label_geo_spacing - distance_since_last_label*x_scale)
+					point = mapscript.pointObj(*point)
+					this_x, this_y = tiletree.geo_coord_to_img(point.x, point.y,
+						self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
+					point_iter -= 1
+
 					if(node_extent_shape.contains(point)):
 						min_label_x = point.x - (x_scale * self.label_adjustment_max)
 						max_label_x = point.x + (x_scale * self.label_adjustment_max)
@@ -612,8 +626,14 @@ class LabelRenderer(BaseLabelRenderer):
 							y_scale, min_label_x, max_label_x, label_geo_w, label_geo_h)
 						ret_results.append(self.return_pos_results(node, pos_results))
 
+					distance_since_last_label = 0
+				else:
+					distance_since_last_label += this_distance
+
 				last_x = this_x
 				last_y = this_y
+				last_point = point
+				point_iter +=1 
 
 		return ret_results
 
