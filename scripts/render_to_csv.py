@@ -44,7 +44,7 @@ def render_to_csv(config, ):
 		check_full = config.get('check_full', True)
 
 		#this can happen when an individual batch uses "stop_zoom" 
-		if(config['stop_zoom'] < job['stop_zoom']):
+		if('stop_zoom' in config and config['stop_zoom'] < job['stop_zoom']):
 			job['stop_zoom'] = config['stop_zoom']
 
 		#this can happen when an individual batch uses "stop_zoom" 
