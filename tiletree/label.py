@@ -100,7 +100,7 @@ def calc_distance(x1, y1, x2, y2):
 
 class LabelClass:
 	def __init__(self, font='arial', font_size=12, mapserver_query="(1==1)", font_color_fg=(0, 0, 0, 1),
-			font_color_bg=None, min_zoom=0, max_zoom=19, weight="normal", label_type="poly"):
+			font_color_bg=None, min_zoom=0, max_zoom=19, weight="normal", label_type="polygon"):
 		self.font = font
 		self.font_size = font_size
 		self.mapserver_query = mapserver_query
@@ -353,7 +353,7 @@ class LabelRenderer(BaseLabelRenderer):
 	def position_label(self, shape, node, label_width, label_height, label_class, node_extent_shape):
 		if(label_class.label_type == "point"):
 			return [self.position_point_label(shape, node, label_width, label_height)]
-		elif(label_class.label_type == "poly"):
+		elif(label_class.label_type == "polygon"):
 			return [self.position_poly_label(shape, node, label_width, label_height)]
 		return self.position_boundary_label(shape, node, label_width, label_height, node_extent_shape)
 		
@@ -448,7 +448,6 @@ class LabelRenderer(BaseLabelRenderer):
 		x_buffer = self.label_buffer * x_scale
 		y_buffer = self.label_buffer * y_scale
 
-		y_pos = ghost_y
 		good_position = False
 		position_interval = min(shape.bounds.maxy, ghost_y + y_scale * self.label_adjustment_max) -\
 			max(shape.bounds.miny, ghost_y - y_scale * self.label_adjustment_max)
@@ -457,7 +456,14 @@ class LabelRenderer(BaseLabelRenderer):
 		tile_shape = mapscript.rectObj(node.min_x, node.min_y, node.max_x, node.max_y).toPolygon()
 
 		#keep trying y positions until we find one that works
-		for attempt_iter in range(self.position_attempts):
+		for attempt_iter in range(self.position_attempts + 1):
+			#calculate the next y position to try
+
+			if(attempt_iter % 2 == 0):
+				y_pos = ghost_y - (position_interval * attempt_iter / 2.0)
+			else:
+				y_pos = ghost_y + (position_interval * attempt_iter / 2.0)
+
 			#for this  y position, use a horizontal line to 
 			#try and position the label
 
@@ -497,12 +503,6 @@ class LabelRenderer(BaseLabelRenderer):
 
 			if(good_position):
 				break
-
-			#calculate the next y position to try
-			if(attempt_iter % 2 == 0):
-				y_pos = ghost_y - (position_interval * attempt_iter / 2)
-			else:
-				y_pos = ghost_y + (position_interval * attempt_iter / 2)
 
 		if(not good_position):
 			return None
