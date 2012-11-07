@@ -4,6 +4,7 @@ import psycopg2
 from planetwoo.tiletree import load_cutter, load_renderer
 import planetwoo.tiletree.mapserver as mapserver
 import planetwoo.tiletree.label as label
+import planetwoo.tiletree.boundary_label as boundary_label
 import planetwoo.tiletree.postgres as postgres
 import planetwoo.tiletree.composite as composite
 import planetwoo.tiletree.memcached as memcached

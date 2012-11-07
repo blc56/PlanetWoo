@@ -95,9 +95,12 @@ def bbox_check(label_bbox, tile_bbox):
 		return True
 	return False
 
+def calc_distance(x1, y1, x2, y2):
+	return math.sqrt((x1 - x2)**2 + (y1 - y2)**2)
+
 class LabelClass:
 	def __init__(self, font='arial', font_size=12, mapserver_query="(1==1)", font_color_fg=(0, 0, 0, 1),
-			font_color_bg=None, min_zoom=0, max_zoom=19, weight="normal"):
+			font_color_bg=None, min_zoom=0, max_zoom=19, weight="normal", label_type="poly"):
 		self.font = font
 		self.font_size = font_size
 		self.mapserver_query = mapserver_query
@@ -106,6 +109,7 @@ class LabelClass:
 		self.min_zoom = min_zoom
 		self.max_zoom = max_zoom
 		self.weight = weight
+		self.label_type=label_type
 
 	def to_dict(self):
 		return copy.copy(self.__dict__)
@@ -141,15 +145,110 @@ class BaseLabelRenderer(tiletree.Renderer):
 		layer_classes = self.label_classes.setdefault(layer_name, [])
 		layer_classes.append(label_class)
 
+	def set_mapfile_extent(self, node):
+		#convert from a pixel buffer distance to an image buffer distance
+		x_scale = (node.max_x - node.min_x) / float(self.img_w) 
+		y_scale = (node.max_y - node.min_y) / float(self.img_h)
+		x_buffer = x_scale * self.tile_buffer
+		y_buffer = y_scale * self.tile_buffer
+
+		#hack to get the correct scale
+		#self.mapfile.setExtent(node.min_x , node.min_y, node.max_x, node.max_y)
+		#scale_denom = self.mapfile.scaledenom
+		self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
+				node.max_x + x_buffer, node.max_y + y_buffer)
+
+	def build_image(self, surface, node):
+		img_bytes = StringIO.StringIO()
+		img_id = tiletree.build_node_id(node.zoom_level, node.tile_x, node.tile_y)
+		surface.write_to_png(img_bytes)
+		img_bytes = tiletree.palette_png_bytes(StringIO.StringIO(img_bytes.getvalue()))
+		return (img_id, img_bytes)
+
+	def get_label_size(self, surface, label_text, label_class):
+		context = cairo.Context(surface)
+		weight = cairo.FONT_WEIGHT_NORMAL
+		#if(label_class.weight == "bold"):
+			#weight = cairo.FONT_WEIGHT_BOLD
+		#font_face = context.select_font_face(label_class.font, cairo.FONT_SLANT_NORMAL, )
+		font_face = self.get_font_face(label_class.font)
+		context.set_font_face(font_face)
+		context.set_font_size(label_class.font_size)
+		width, height = self.get_line_size(context, label_text)
+
+		#if the label is too long, split it
+		#and calculate the new label size
+		if(width > self.tile_buffer):
+			label_text = self.split_label(context, label_text)
+			width = 0
+			height = 0
+			for line in label_text.splitlines():
+				this_width, this_height = self.get_line_size(context, line)
+				width = max(this_width, width)
+				height += this_height
+
+		return (context, width, height, label_text)
+
+	def get_line_size(self, context, label_text):
+		text_extents = context.text_extents(label_text)
+		width, height = text_extents[4] + text_extents[0], text_extents[3]
+		return width, height
+
+	def render_blank(self, node):
+		if(self.blank_img_bytes == None):
+			surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
+			self.blank_img_bytes = self.build_image(surface, node)[1]
+		return (0, self.blank_img_bytes)
+
+	def render(self, node):
+
+		if(node.is_blank):
+			return self.render_blank(node)
+
+		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
+		self.set_mapfile_extent(node)
+
+		node.is_blank = True
+		node.is_leaf = True
+		node.is_full = False
+
+		for layer_name in self.mapserver_layers:
+			layer = self.mapfile.getLayerByName(layer_name)
+			for label_class in self.label_classes[layer_name]:
+				this_blank, this_leaf = \
+						self.render_class(node, layer, surface, label_class) 
+				if(not this_blank):
+					node.is_blank = False
+				if(not this_leaf):
+					node.is_leaf = False
+
+		return self.build_image(surface, node)
+
+	def render_class_zoom_check(self, node, layer, label_class):
+		#check for the scale
+		if(node.zoom_level > label_class.max_zoom):
+			return (True, True)
+		if(node.zoom_level < label_class.min_zoom):
+			#we know we aren't going to render this label class, but check to see if
+			#this node would contain any features
+			layer.queryByAttributes(self.mapfile, '', label_class.mapserver_query, mapscript.MS_SINGLE)
+			layer.open()
+			num_results = layer.getNumResults()
+			layer.close()
+			if(num_results > 0):
+				return (True, False)
+			return (True, True)
+
+		return None
+
 class LabelRenderer(BaseLabelRenderer):
 	def __init__(self, mapfile_string, label_col_index, mapserver_layers,
 			min_zoom=0, max_zoom=100, label_spacing=1024, img_w=256, img_h=256, tile_buffer=256,
-			point_labels=False, point_buffer=4, position_attempts=4, label_buffer=0,
+			 point_buffer=4, position_attempts=4, label_buffer=0,
 			info_cache_name=None):
 		BaseLabelRenderer.__init__(self, mapfile_string, label_col_index, mapserver_layers,
 			min_zoom=min_zoom, max_zoom=max_zoom, label_spacing=label_spacing, img_w=img_w, img_h=img_h,
 			tile_buffer=256, info_cache_name=info_cache_name)
-		self.point_labels = point_labels
 		self.point_buffer = point_buffer
 		self.label_buffer = label_buffer
 		self.position_attempts = position_attempts
@@ -169,33 +268,6 @@ class LabelRenderer(BaseLabelRenderer):
 			#we know this is going to be a blank node
 			node.is_blank = True
 			return
-
-			#x_scale = (node.max_x - node.min_x) / float(self.img_w) 
-			#y_scale = (node.max_y - node.min_y) / float(self.img_h)
-			#x_buffer = x_scale * self.tile_buffer
-			#y_buffer = y_scale * self.tile_buffer
-
-			#rect = mapscript.rectObj(node.min_x - x_buffer, node.min_y - y_buffer,
-						#node.max_x + x_buffer, node.max_y + y_buffer)
-
-			#self.mapfile.queryByRect(rect)
-
-			##check if this is going to be a leaf node
-			#node.is_leaf = True
-			#for layer_name in self.mapserver_layers:
-				#layer = self.mapfile.getLayerByName(layer_name)
-				#layer.open()
-				#num_results = layer.getNumResults()
-				#if(num_results > 0):
-					#node.is_leaf = False
-					#return
-				#if(check_full and num_results == 1):
-					#result = layer.getResult(0)
-					#shape = layer.getShape(result)
-					#bbox_shape = mapscript.extent.toPolygon()
-					#if(shape.contains(bbox_shape)):
-						#node.is_full=True
-				#layer.close()
 
 		if(node.zoom_level > self.max_zoom):
 			node.is_blank = True
@@ -240,11 +312,6 @@ class LabelRenderer(BaseLabelRenderer):
 		#context.set_source_rgba(1, 0, 0, 1)
 		#context.stroke()
 
-	def get_line_size(self, context, label_text):
-		text_extents = context.text_extents(label_text)
-		width, height = text_extents[4] + text_extents[0], text_extents[3]
-		return width, height
-
 	def split_label(self, context, label_text):
 		label_text = label_text.strip()
 		#find all spaces in the label
@@ -281,44 +348,15 @@ class LabelRenderer(BaseLabelRenderer):
 			new_label += new_line.strip() + '\n'
 
 		return new_label.strip()
-			
-
-	def get_label_size(self, surface, label_text, label_class):
-		context = cairo.Context(surface)
-		weight = cairo.FONT_WEIGHT_NORMAL
-		#if(label_class.weight == "bold"):
-			#weight = cairo.FONT_WEIGHT_BOLD
-		#font_face = context.select_font_face(label_class.font, cairo.FONT_SLANT_NORMAL, )
-		font_face = self.get_font_face(label_class.font)
-		context.set_font_face(font_face)
-		context.set_font_size(label_class.font_size)
-		width, height = self.get_line_size(context, label_text)
-
-		#if the label is too long, split it
-		#and calculate the new label size
-		if(width > self.tile_buffer):
-			label_text = self.split_label(context, label_text)
-			width = 0
-			height = 0
-			for line in label_text.splitlines():
-				this_width, this_height = self.get_line_size(context, line)
-				width = max(this_width, width)
-				height += this_height
-
-		return (context, width, height, label_text)
-
-	def build_image(self, surface, node):
-		img_bytes = StringIO.StringIO()
-		img_id = tiletree.build_node_id(node.zoom_level, node.tile_x, node.tile_y)
-		surface.write_to_png(img_bytes)
-		img_bytes = tiletree.palette_png_bytes(StringIO.StringIO(img_bytes.getvalue()))
-		return (img_id, img_bytes)
 
 	#returns (is_in_tile, bbox)
-	def position_label(self, shape, node, label_width, label_height):
-		if(self.point_labels):
-			return self.position_point_label(shape, node, label_width, label_height) 
-		return self.position_poly_label(shape, node, label_width, label_height)
+	def position_label(self, shape, node, label_width, label_height, label_class, node_extent_shape):
+		if(label_class.label_type == "point"):
+			return [self.position_point_label(shape, node, label_width, label_height)]
+		elif(label_class.label_type == "poly"):
+			return [self.position_poly_label(shape, node, label_width, label_height)]
+		return self.position_boundary_label(shape, node, label_width, label_height, node_extent_shape)
+		
 
 	def label_point_bbox(self, x, y, width, height, x_scale, y_scale, where_ud, where_lr):
 		width = width * x_scale * .5
@@ -388,6 +426,7 @@ class LabelRenderer(BaseLabelRenderer):
 		wkt = 'MULTILINESTRING((%(min_x)s %(y_pos)s, %(max_x)s %(y_pos)s))'
 		return mapscript.shapeObj.fromWKT(wkt % {'min_x':min_x, 'max_x':max_x, 'y_pos':y_pos})
 
+	#returns 
 	def fast_position_poly_label(self, shape, node, ghost_x, ghost_y, x_scale, y_scale, min_label_x, max_label_x, label_geo_w, label_geo_h):
 		x_buffer = self.label_buffer * x_scale
 		y_buffer = self.label_buffer * y_scale
@@ -444,6 +483,9 @@ class LabelRenderer(BaseLabelRenderer):
 						if(label_shape.intersects(node.label_geoms)):
 							continue
 
+					if(not shape.contains(label_shape)):
+						continue
+
 					#don't let this label bleed into another tile if it has been
 					#shifted
 					#this avoids an infinite chain of label "corrections"
@@ -484,6 +526,10 @@ class LabelRenderer(BaseLabelRenderer):
 		ghost_x, ghost_y = self.find_poly_label_ghost(seed_point.x, seed_point.y,
 				node, x_repeat_interval,  y_repeat_interval)
 
+		#make sure the ghost point is in the polygon
+		if(not shape.contains(mapscript.pointObj(ghost_x, ghost_y))):
+				return None
+
 		min_label_x = ghost_x - (x_scale * self.label_adjustment_max)
 		max_label_x = ghost_x + (x_scale * self.label_adjustment_max)
 		min_label_y = ghost_y - (y_scale * self.label_adjustment_max)
@@ -507,6 +553,10 @@ class LabelRenderer(BaseLabelRenderer):
 			pos_results = self.slow_position_poly_label(shape, node,
 					ghost_x, ghost_y, x_scale, y_scale, min_label_x, max_label_x,
 					label_geo_w, label_geo_h)
+
+		return self.return_pos_results(node, pos_results)
+
+	def return_pos_results(self, node, pos_results):
 		if(not pos_results):
 			return None
 
@@ -525,6 +575,48 @@ class LabelRenderer(BaseLabelRenderer):
 
 		return (is_in_tile, label_geo_bbox)
 
+	def position_boundary_label(self, shape, node, label_width, label_height, node_extent_shape):
+		x_scale = (node.max_x - node.min_x) / float(self.img_w)
+		y_scale = (node.max_y - node.min_y) / float(self.img_h)
+		label_geo_w = label_width * x_scale * .5
+		label_geo_h = label_height * y_scale * .5
+
+		ret_results = []
+
+		if(not shape):
+			return None
+
+		distance_since_last_label = 0
+		line = shape.get(0)
+		for line_iter in range(shape.numlines):
+			line = shape.get(line_iter)
+
+			if(line.numpoints == 0):
+				continue
+
+			first_point = line.get(0)
+			last_x, last_y = tiletree.geo_coord_to_img(first_point.x, first_point.y,
+					self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
+			for point_iter in range(1, line.numpoints):
+				point = line.get(point_iter)
+				this_x, this_y = tiletree.geo_coord_to_img(point.x, point.y,
+					self.img_w, self.img_h, node.min_x, node.min_y, node.max_x, node.max_y)
+				distance_since_last_label += calc_distance(this_x, this_y, last_x, last_y)
+
+				if(distance_since_last_label > self.label_spacing ):
+					distance_since_last_label = 0
+					if(node_extent_shape.contains(point)):
+						min_label_x = point.x - (x_scale * self.label_adjustment_max)
+						max_label_x = point.x + (x_scale * self.label_adjustment_max)
+						pos_results = self.slow_position_poly_label(shape, node, point.x, point.y, x_scale,
+							y_scale, min_label_x, max_label_x, label_geo_w, label_geo_h)
+						ret_results.append(self.return_pos_results(node, pos_results))
+
+				last_x = this_x
+				last_y = this_y
+
+		return ret_results
+
 	def render_pos_results(self, node, context, label_class, label_text, is_in_tile, label_extent):
 		if(not is_in_tile):
 			return
@@ -537,20 +629,10 @@ class LabelRenderer(BaseLabelRenderer):
 		self.render_label(context, label_text, img_x, img_y, img_max_x, img_max_y, label_class)
 
 	#return (is_blank, is_leaf)
-	def render_class(self, node, scale_denom, layer, surface, label_class):
-		#check for the scale
-		if(node.zoom_level > label_class.max_zoom):
-			return (True, True)
-		if(node.zoom_level < label_class.min_zoom):
-			#we know we aren't going to render this label class, but check to see if
-			#this node would contain any features
-			layer.queryByAttributes(self.mapfile, '', label_class.mapserver_query, mapscript.MS_SINGLE)
-			layer.open()
-			num_results = layer.getNumResults()
-			layer.close()
-			if(num_results > 0):
-				return (True, False)
-			return (True, True)
+	def render_class(self, node, layer, surface, label_class):
+		zoom_check = self.render_class_zoom_check(node, layer, label_class)
+		if(zoom_check != None):
+			return zoom_check
 
 		if(label_class.mapserver_query == None):
 			label_class.mapserver_query = "(1 == 1)"
@@ -561,10 +643,20 @@ class LabelRenderer(BaseLabelRenderer):
 		layer.queryByAttributes(self.mapfile, '', label_class.mapserver_query, mapscript.MS_MULTIPLE)
 		layer.open()
 		num_results = layer.getNumResults()
+		node_extent_shape = self.mapfile.extent.toPolygon()
 		for f in range(num_results):
 			result = layer.getResult(f)
 			shape = layer.getShape(result)
 			label_text = unicode(shape.getValue(self.label_col_index), 'latin_1')
+
+			#weed out some false positives
+			if(not node_extent_shape.intersects(shape)):
+				continue
+
+			if(label_class.label_type == "boundary"):
+				if(shape.contains(node_extent_shape)):
+					is_blank = True
+					break
 
 			if(not label_text):
 				continue
@@ -572,64 +664,18 @@ class LabelRenderer(BaseLabelRenderer):
 			context, label_width, label_height, label_text =\
 				self.get_label_size(surface, label_text, label_class)
 
-			#weed out some false positives
-			if(not self.mapfile.extent.toPolygon().intersects(shape)):
-				continue
-
 			is_blank = False
 			is_leaf = False
 
-			pos_results = self.position_label(shape, node, label_width, label_height)
-
-			if(pos_results == None):
-				continue
-
-			self.render_pos_results(node, context, label_class, label_text, pos_results[0], pos_results[1])
+			pos_results_list = self.position_label(shape, node, label_width, label_height, label_class, node_extent_shape)
+			for pos_results in pos_results_list:
+				if(pos_results == None):
+					continue
+				self.render_pos_results(node, context, label_class, label_text, pos_results[0], pos_results[1])
 
 		layer.close()
 
 		self.mapfile.freeQuery()
 
 		return (is_blank, is_leaf)
-
-	def render_blank(self, node):
-		if(self.blank_img_bytes == None):
-			surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
-			self.blank_img_bytes = self.build_image(surface, node)[1]
-		return (0, self.blank_img_bytes)
-
-	def render(self, node):
-
-		if(node.is_blank):
-			return self.render_blank(node)
-
-		surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, self.img_w, self.img_h)
-
-		#convert from a pixel buffer distance to an image buffer distance
-		x_scale = (node.max_x - node.min_x) / float(self.img_w) 
-		y_scale = (node.max_y - node.min_y) / float(self.img_h)
-		x_buffer = x_scale * self.tile_buffer
-		y_buffer = y_scale * self.tile_buffer
-
-		#hack to get the correct scale
-		self.mapfile.setExtent(node.min_x , node.min_y, node.max_x, node.max_y)
-		scale_denom = self.mapfile.scaledenom
-		self.mapfile.setExtent(node.min_x - x_buffer, node.min_y - y_buffer,
-				node.max_x + x_buffer, node.max_y + y_buffer)
-
-		node.is_blank = True
-		node.is_leaf = True
-		node.is_full = False
-
-		for layer_name in self.mapserver_layers:
-			layer = self.mapfile.getLayerByName(layer_name)
-			for label_class in self.label_classes[layer_name]:
-				this_blank, this_leaf = \
-						self.render_class(node, scale_denom, layer, surface, label_class) 
-				if(not this_blank):
-					node.is_blank = False
-				if(not this_leaf):
-					node.is_leaf = False
-
-		return self.build_image(surface, node)
 

@@ -522,7 +522,7 @@ def load_renderer(config):
 		renderer = label.LabelRenderer(open(mapfile_path,'r').read(),
 			config.get('label_col_index', None), config['mapserver_layers'],
 			config.get('min_zoom', 0), config.get('max_zoom', 100),
-			point_labels=config.get('point_labels', False))
+			info_cache_name=config.get('tile_info_cache', None))
 		load_label_classes(config, renderer)
 		return renderer
 
