@@ -180,34 +180,37 @@ def get_progress_from_host(render_node_configs):
 	return host_stats
 
 @parallel
-def get_node_results(global_config, render_node_configs, download_path="./"):
+def get_node_results(global_config, render_node_configs, render_prefix=None, download_path="./"):
 	output_prefix = global_config['dist_render']['output_prefix']
-	num_jobs = len(render_node_configs[env.host_string]['jobs'])
-	host_stats = []
-	for x in range(num_jobs):
-		local('mkdir -p %s' % env.host)
-		get(output_prefix + '*.csv', env.host)
-		get(output_prefix + '*.log', env.host)
-	return host_stats
 
-def get_results_helper(global_config, download_path="./"):
+	if(render_prefix != None):
+		output_prefix += '*' + render_prefix
+
+	local('mkdir -p %s/%s' % (download_path,env.host) )
+
+	get(output_prefix + '*.csv', '%s/%s/' % (download_path, env.host) )
+	get(output_prefix + '*.log', '%s/%s/' % (download_path, env.host) )
+
+def get_results_helper(global_config, download_path="./", render_prefix=None):
 	render_node_configs = create_machine_jobs(global_config)
 	render_hosts = [n['address'] for n in render_node_configs.values()]
-	execute(get_node_results, global_config, render_node_configs, download_path=download_path, hosts=render_hosts)
+	execute(get_node_results, global_config, render_node_configs, download_path=download_path, render_prefix=render_prefix, hosts=render_hosts)
 
 @task
 @serial
-def get_results(config_path, download_path="./"):
+def get_results(config_path, download_path="./", render_prefix=None):
 	global_config=json.loads(open(config_path, 'r').read())
-	get_results_helper(global_config, download_path=download_path)
+	get_results_helper(global_config, download_path=download_path, render_prefix=render_prefix)
 
 @task
 @serial
 def batch_load_results(config_path, connect_str, download_dir,
-		address_override=None, prefix_override=None):
+		address_override=None, prefix_override=None, clear_extent=None, render_prefix=None):
 	#TODO: FIXME XXX: convert this function for new config file format
 	global_config=json.loads(open(config_path, 'r').read())
 	render_node_configs = create_machine_jobs(global_config)
+	if(clear_extent != None):
+		clear_extent = json.loads(clear_extent)
 
 	for layer_name in global_config['layer_order']:
 		is_first_load = True
@@ -215,15 +218,22 @@ def batch_load_results(config_path, connect_str, download_dir,
 		node_table = layer['tree_table']
 		image_table = layer['image_table']
 		storage = pw_postgres.PostgresStorageManager(connect_str, node_table, image_table)
+
 		for render_node in render_node_configs.values():
 			if(is_first_load):
-				print 'Create tables.', node_table, image_table
 				is_first_load = False
-				storage.recreate_tables()
+				if(clear_extent == None):
+					print 'Create tables.', node_table, image_table
+					storage.recreate_tables()
+				else:
+					print 'Clear extent.', node_table, image_table, clear_extent
+					storage.clear_extent(clear_extent, global_config['map_extent'])
 			for x in range(0, len(render_node['jobs'])):
 				prefix = prefix_override
 				if(prefix_override == None):
 					prefix = os.path.basename(layer['output_prefix'])
+					if(render_prefix != None):
+						prefix += render_prefix
 				address = address_override
 				if(address_override == None):
 					address = render_node['address']
