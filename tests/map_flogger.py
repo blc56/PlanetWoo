@@ -87,7 +87,7 @@ def slippy_test(test_options, width=TILE_WIDTH, height=TILE_HEIGHT, tile_factor=
 	sys.stderr.write('.')
 
 	if(False in results):
-		return '%d,ERROR,%d' % (float('nan'), float('nan'))
+		return '%d,ERROR,%f' % (-1, float('nan'))
 	return '%d,OK,' % z + str(end_time - start_time)
 
 
