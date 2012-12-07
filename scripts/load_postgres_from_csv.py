@@ -28,8 +28,8 @@ def main():
 		help='Postgres database connection string')
 	parser.add_argument('-C', '--create', dest='create', required=False, action='store_true',
 		help='Force Drop and recreate tables')
-	parser.add_argument('-t', '--tree', dest='tree', nargs='+', required=False, help='Path to tree .csv file')
-	parser.add_argument('-i', '--images', dest='images', nargs='+', required=False, help='Path to images .csv file')
+	parser.add_argument('-t', '--tree', dest='tree', nargs='+', required=False, help='Path to tree .csv file', default=[])
+	parser.add_argument('-i', '--images', dest='images', nargs='+', required=False, help='Path to images .csv file', default=[])
 	parser.add_argument('-tt', '--tree-table', dest='tree_table', required=True,
 			help='Name of postgres tree table')
 	parser.add_argument('-it', '--images-table', dest='images_table', required=True,

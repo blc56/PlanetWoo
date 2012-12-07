@@ -661,15 +661,18 @@ def generate_mt(generator_jobs, num_threads=multiprocessing.cpu_count()):
 
 	#check every 10 seconds to see if a thread has finished 
 	while(len(generator_jobs) > 0):
+		should_sleep = True
 		for x in range(len(threads)):
 			if(not threads[x].is_alive()):
 				del threads[x]
 				new_thread = multiprocessing.Process(target=generate, args=[generator_jobs.pop()])
 				threads.append(new_thread)
 				new_thread.start()
+				should_sleep = False
 				break
 
-		time.sleep(10)
+		if(should_sleep):
+			time.sleep(5)
 
 	#wait for everyone to finish
 	for thread in threads:
