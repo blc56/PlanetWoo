@@ -240,8 +240,9 @@ def batch_load_results(config_path, connect_str, download_dir,
 				tree_path = os.path.join(download_dir, address) + '/' + prefix + 'tree_%d.csv' % x
 				image_path = os.path.join(download_dir, address) + '/' + prefix + 'images_%d.csv' % x
 				print tree_path, image_path
-				storage.copy(open(tree_path, 'r'), open(image_path, 'r'))
-				storage.flush()
+				if(os.path.exists(tree_path) and os.path.exists(image_path)):
+					storage.copy(open(tree_path, 'r'), open(image_path, 'r'))
+					storage.flush()
 
 @task
 @serial
